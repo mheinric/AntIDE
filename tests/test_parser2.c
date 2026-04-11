@@ -53,12 +53,13 @@ test_parse2_single_instruction_no_arg() {
 void 
 test_parse2_single_instruction_arg1() {
     //Test instructions with a single argument.
-    enum { NB_TESTS = 4 };
+    enum { NB_TESTS = 5 };
     const char* test_instructions[NB_TESTS] = {
         "MOVE r0", 
         "MOVE r1",
         "MOVE 2",
         "MOVE -165",
+        "MOVE NORTH",
     };
 
     const Instruction expected_results[NB_TESTS] = {
@@ -66,6 +67,7 @@ test_parse2_single_instruction_arg1() {
         instruction_create_move(argument_create_register(1)),
         instruction_create_move(argument_create_value(2)),
         instruction_create_move(argument_create_value(-165)),
+        instruction_create_move(argument_create_value(1)),
     };
 
     for (int i = 0; i < NB_TESTS; i++)

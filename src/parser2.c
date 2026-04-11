@@ -86,6 +86,21 @@ parser2_verify_nb_arguments(unsigned expected, unsigned actual, VectorParseError
     return false;
 }
 
+const struct { const char* key; Argument value; } parser2_builtin_constants[] = {
+    { .key = "r0",    .value = { .is_register = true, .register_index = 0 } },
+    { .key = "r1",    .value = { .is_register = true, .register_index = 1 } },
+    { .key = "r2",    .value = { .is_register = true, .register_index = 2 } },
+    { .key = "r3",    .value = { .is_register = true, .register_index = 3 } },
+    { .key = "r4",    .value = { .is_register = true, .register_index = 4 } },
+    { .key = "r5",    .value = { .is_register = true, .register_index = 5 } },
+    { .key = "r6",    .value = { .is_register = true, .register_index = 6 } },
+    { .key = "r7",    .value = { .is_register = true, .register_index = 7 } },
+    { .key = "NORTH", .value = { .is_register = false, .value = 1 } },
+    { .key = "EAST",  .value = { .is_register = false, .value = 2 } },
+    { .key = "SOUTH", .value = { .is_register = false, .value = 3 } },
+    { .key = "WEST",  .value = { .is_register = false, .value = 4 } },
+};
+
 bool 
 parser2_read_argument(const Token2 *token, Argument *target, VectorParseError *errors)
 {
@@ -111,24 +126,20 @@ parser2_read_argument(const Token2 *token, Argument *target, VectorParseError *e
     }
     else
     {
-        //We are reading a register
-        if (token2_matches_str(token, "r0"))
+        const size_t nb_constants = sizeof(parser2_builtin_constants) / sizeof(parser2_builtin_constants[0]);
+        for (size_t i = 0; i < nb_constants; i++)
         {
-            *target = argument_create_register(0);
+            if (token2_matches_str(token, parser2_builtin_constants[i].key))
+            {
+                *target = parser2_builtin_constants[i].value;
+                return true;
+            }
         }
-        else if (token2_matches_str(token, "r1"))
-        {
-            *target = argument_create_register(1);
-        }
-        else 
-        {
-            ParseError err;
-            err.line = 1; 
-            err.message = "Invalid argument";
-            vector_parse_error_push(errors, err);
-            return false;
-        }
-        return true;
+        ParseError err;
+        err.line = 1; 
+        err.message = "Invalid argument";
+        vector_parse_error_push(errors, err);
+        return false;
     }
 }
 
