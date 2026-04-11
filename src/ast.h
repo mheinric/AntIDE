@@ -16,10 +16,14 @@ typedef struct {
     InstructionType type; 
 } Instruction;
 
+#define VECTOR_ITEM_TYPE Instruction 
+#define VECTOR_ITEM_NAME instruction
+#include "vector.h"
+#undef VECTOR_ITEM_TYPE
+#undef VECTOR_ITEM_NAME
+
 typedef struct {
-    Instruction* begin; 
-    Instruction* end; 
-    uint64_t capacity;
+    VectorInstruction instructions;
 } Program2;
 
 void 

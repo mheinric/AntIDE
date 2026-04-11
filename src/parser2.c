@@ -1,32 +1,15 @@
 #include "parser2.h"
 
-void 
-parse2_error_list_init(Parse2ErrorList */*error_list*/)
+void parse2_result_init(Parse2Result *parse_result)
 {
-}
-
-void parse2_error_list_clear(Parse2ErrorList */*error_list*/)
-{
-    //TODO free the memory here
-}
-
-void 
-parse2_result_init(Parse2Result *parse_result)
-{
-    parse2_error_list_init(&parse_result->errors);
     program2_init(&parse_result->program);
+    vector_parse_error_init(&parse_result->errors);
 }
 
 void parse2_result_clear(Parse2Result *parse_result)
 {
     program2_clear(&parse_result->program);
-    parse2_error_list_clear(&parse_result->errors);
-}
-
-uint64_t
-error_list_size(Parse2ErrorList * /*parse_result*/)
-{
-    return 0;
+    vector_parse_error_clear(&parse_result->errors);
 }
 
 typedef struct {
@@ -98,19 +81,42 @@ parse2_program_from_string(const char *content)
     //First pass, read from the string input
     const char* current_position = content;
     Token2 token = NULL_TOKEN;
-    if (*current_position != '\0') {
+    if (*current_position != '\0') 
+    {
         token = parser2_read_identifier(&current_position);
+    }
+
+    if (*current_position != '\0' && !isspace(*current_position))
+    {
+        ParseError err; 
+        err.line = 1; 
+        err.message = "Unexpected character";
+        vector_parse_error_push(&result.errors, err);
+        return result;
     }
 
     //Second pass, convert what was read into instructions
     if (!token2_is_null(&token)) 
     {
-        Instruction inst;
-        inst.type = token2_matches_str(&token, "PICKUP") ? INST_PICKUP : INST_DROP; 
-        program2_push_instruction(&result.program, inst);
+        if (token2_matches_str(&token, "PICKUP")) 
+        {
+            Instruction inst;
+            inst.type = INST_PICKUP; 
+            program2_push_instruction(&result.program, inst);
+        }
+        else if (token2_matches_str(&token, "DROP"))
+        {
+            Instruction inst;
+            inst.type = INST_DROP; 
+            program2_push_instruction(&result.program, inst);
+        }
+        else 
+        {
+            ParseError err;
+            err.line = 1; 
+            err.message = "Unknown instruction name";
+            vector_parse_error_push(&result.errors, err);
+        }
     }
-
-        
-
     return result;
 }

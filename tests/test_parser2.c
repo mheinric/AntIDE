@@ -2,14 +2,16 @@
 #include "parser2.h"
 
 
-void test_parse2_empty_program() {
+void 
+test_parse2_empty_program() {
     Parse2Result result = parse2_program_from_string("");
-    TEST_ASSERT_EQUAL_UINT64(0, error_list_size(&result.errors));
+    TEST_ASSERT_EQUAL_UINT64(0, vector_parse_error_size(&result.errors));
     TEST_ASSERT_EQUAL_UINT64(0, program2_size(&result.program));
     parse2_result_clear(&result);
 }
 
-void test_parse2_single_instruction_no_arg() {
+void 
+test_parse2_single_instruction_no_arg() {
     enum { NB_ITEMS = 4 };
     const char* inst_str[NB_ITEMS] = {
         "PICKUP", 
@@ -28,27 +30,29 @@ void test_parse2_single_instruction_no_arg() {
     for (int i = 0; i < NB_ITEMS; i++)
     {
         Parse2Result result = parse2_program_from_string(inst_str[i]);
-        TEST_ASSERT_EQUAL_UINT64(0, error_list_size(&result.errors));
+        TEST_ASSERT_EQUAL_UINT64(0, vector_parse_error_size(&result.errors));
         TEST_ASSERT_EQUAL_UINT64(1, program2_size(&result.program));
-        TEST_ASSERT_EQUAL(inst_type[i], result.program.begin->type);
+        TEST_ASSERT_EQUAL(inst_type[i], result.program.instructions.begin->type);
         parse2_result_clear(&result);
     }
 }
 
-void test_parse2_invalid_instruction() {
-    enum { NB_ITEMS = 1 };
+void 
+test_parse2_invalid_instruction() {
+    enum { NB_ITEMS = 2 };
     const char* inst_str[NB_ITEMS] = {
-        "toto", 
+        "toto",
+        "foo-bar",
     };
 
     for (int i = 0; i < NB_ITEMS; i++)
     {
         Parse2Result result = parse2_program_from_string(inst_str[i]);
-        TEST_ASSERT_EQUAL_UINT64(1, error_list_size(&result.errors));
+        TEST_ASSERT_EQUAL_UINT64(1, vector_parse_error_size(&result.errors));
+        TEST_ASSERT_EQUAL_UINT64(1, result.errors.begin[0].line);
         TEST_ASSERT_EQUAL_UINT64(0, program2_size(&result.program));
         parse2_result_clear(&result);
     }
-
 }
 
 int run_all_parser2_tests(void) {
