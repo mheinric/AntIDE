@@ -24,7 +24,7 @@ void token_print(const Token *token)
     printf("'%.*s'", (int) (token->end - token->begin), token->begin);
 }
 
-void instruction_init(Instruction *instr)
+void instruction_line_init(InstructionLine *instr)
 {
     instr->name = NULL_TOKEN;
     for (uint64_t i = 0; i < MAX_INSTRUCTION_ARGS; i++) {
@@ -32,28 +32,28 @@ void instruction_init(Instruction *instr)
     }
 }
 
-void instruction_vect_init(InstructionsVect *vect, uint64_t size)
+void instruction_lines_vect_init(InstructionLinesVect *vect, uint64_t size)
 {
-    vect->begin = calloc(size, sizeof(Instruction));
+    vect->begin = calloc(size, sizeof(InstructionLine));
     vect->end = vect->begin;
     vect->capacity = size;
 }
 
-uint64_t instruction_vect_size(const InstructionsVect *vect)
+uint64_t instruction_lines_vect_size(const InstructionLinesVect *vect)
 {
     return vect->end - vect->begin;
 }
 
-void instruction_vect_push(InstructionsVect *vect, Instruction inst)
+void instruction_lines_vect_push(InstructionLinesVect *vect, InstructionLine inst)
 {
-    const uint64_t size = instruction_vect_size(vect);
+    const uint64_t size = instruction_lines_vect_size(vect);
     if (size >= vect->capacity) 
     {
         //Allocate new memory
         const uint64_t new_capacity = vect->capacity * 2;
-        Instruction* new_content = calloc(new_capacity, sizeof(Instruction));
+        InstructionLine* new_content = calloc(new_capacity, sizeof(InstructionLine));
         //Copy data to the new memory
-        memcpy(new_content, vect->begin, vect->capacity * sizeof(Instruction));
+        memcpy(new_content, vect->begin, vect->capacity * sizeof(InstructionLine));
         //Free old memory
         free(vect->begin);
         vect->capacity = new_capacity; 
@@ -98,13 +98,13 @@ void labels_map_insert(LabelsMap *map, Token token, uint64_t pos)
 
 void program_init(Program *prog)
 {
-    instruction_vect_init(&prog->instructions, 5); //Arbitrary initial capacity
+    instruction_lines_vect_init(&prog->instructions, 5); //Arbitrary initial capacity
     labels_map_init(&prog->labels, 5);
 }
 
 uint64_t program_nb_instructions(Program *prog)
 {
-    return instruction_vect_size(&prog->instructions);
+    return instruction_lines_vect_size(&prog->instructions);
 }
 
 uint64_t program_nb_labels(Program *prog)
@@ -215,8 +215,8 @@ void read_program_line(Program *prog, const char **input_ptr)
         return;
     }
 
-    Instruction inst; 
-    instruction_init(&inst);
+    InstructionLine inst; 
+    instruction_line_init(&inst);
     inst.name = tok;
     int arg_index = 0;
     while (arg_index < MAX_INSTRUCTION_ARGS && !has_line_ended(input_ptr) && **input_ptr != ';')
@@ -225,6 +225,6 @@ void read_program_line(Program *prog, const char **input_ptr)
         arg_index++;
     }
     //TODO handle the case where arg_index = MAX_INSTRUCTION_ARGS
-    instruction_vect_push(&prog->instructions, inst);
+    instruction_lines_vect_push(&prog->instructions, inst);
     skip_line(input_ptr);
 }

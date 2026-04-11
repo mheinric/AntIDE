@@ -26,25 +26,25 @@ token_print(const Token* token);
 typedef struct {
     Token name; 
     Token arguments[MAX_INSTRUCTION_ARGS];
-} Instruction;
+} InstructionLine;
 
 void 
-instruction_init(Instruction *instruction);
+instruction_line_init(InstructionLine *instruction);
 
 typedef struct {
-    Instruction *begin;
-    Instruction *end;
+    InstructionLine *begin;
+    InstructionLine *end;
     uint64_t capacity;
-} InstructionsVect;
+} InstructionLinesVect;
 
 void 
-instruction_vect_init(InstructionsVect *vect, uint64_t capacity);
+instruction_lines_vect_init(InstructionLinesVect *vect, uint64_t capacity);
 
 uint64_t
-instruction_vect_size(const InstructionsVect *vect);
+instruction_lines_vect_size(const InstructionLinesVect *vect);
 
 void 
-instruction_vect_push(InstructionsVect *vect, Instruction inst);
+instruction_lines_vect_push(InstructionLinesVect *vect, InstructionLine inst);
 
 typedef struct {
     Token key;
@@ -67,7 +67,7 @@ void
 labels_map_insert(LabelsMap *map, Token token, uint64_t pos);
 
 typedef struct {
-    InstructionsVect instructions;
+    InstructionLinesVect instructions;
     LabelsMap labels;
 } Program;
 
