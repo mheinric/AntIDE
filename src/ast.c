@@ -8,6 +8,14 @@ Argument argument_create_register(uint8_t reg_index)
     return result;
 }
 
+Argument argument_create_value(int32_t value)
+{
+    Argument result; 
+    result.is_register = false; 
+    result.value = value;
+    return result;
+}
+
 bool argument_equal(Argument first, Argument second)
 {
     if (first.is_register != second.is_register)

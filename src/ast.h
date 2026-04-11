@@ -23,6 +23,9 @@ typedef struct {
 Argument
 argument_create_register(uint8_t reg_index);
 
+Argument
+argument_create_value(int32_t value);
+
 bool 
 argument_equal(Argument first, Argument second);
 

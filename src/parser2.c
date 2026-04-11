@@ -55,7 +55,7 @@ parser2_skip_whitespace(const char** input_ptr) {
     }
 }
 
-Token2 parser2_read_identifier(const char **input_ptr)
+Token2 parser2_read_token(const char **input_ptr)
 {
     parser2_skip_whitespace(input_ptr);
     if (parser2_has_line_ended(input_ptr)) {
@@ -63,7 +63,7 @@ Token2 parser2_read_identifier(const char **input_ptr)
     }
     const char* result_begin = *input_ptr;
 
-    while (isalnum(**input_ptr) || **input_ptr == '_') {
+    while (isalnum(**input_ptr) || **input_ptr == '_' || **input_ptr == '-') {
         (*input_ptr)++;
     }
     Token2 result; 
@@ -71,13 +71,6 @@ Token2 parser2_read_identifier(const char **input_ptr)
     result.end = *input_ptr;
     return result;
 }
-
-enum {
-    INSTRUCTION_PARSE_MATCH, 
-    INSTRUCTION_PARSE_NOT_MATCH, 
-    INSTRUCTION_PARSE_TOO_MANY_ARGS,
-    INSTRUCTION_PARSE_TOO_FEW_ARGS,
-};
 
 bool 
 parser2_verify_nb_arguments(unsigned expected, unsigned actual, VectorParseError *errors)
@@ -93,25 +86,50 @@ parser2_verify_nb_arguments(unsigned expected, unsigned actual, VectorParseError
     return false;
 }
 
-bool parser2_read_argument(const Token2 *token, Argument *target, VectorParseError *errors)
+bool 
+parser2_read_argument(const Token2 *token, Argument *target, VectorParseError *errors)
 {
-    if (token2_matches_str(token, "r0"))
+    if (isdigit(token->begin[0]) || token->begin[0] == '-')
     {
-        *target = argument_create_register(0);
+        //We are reading a number
+        bool is_negative = token->begin[0] == '-';
+        int32_t value = 0;
+        for (const char* it = token->begin + is_negative; it != token->end; it++)
+        {
+            if (!isdigit(*it))
+            {
+                ParseError err; 
+                err.line = 1; 
+                err.message = "Invalid number format";
+                vector_parse_error_push(errors, err);
+                return false;
+            }
+            value = 10 * value + (*it - '0');
+        }
+        *target = argument_create_value(is_negative ? -value : value);
+        return true;
     }
-    else if (token2_matches_str(token, "r1"))
+    else
     {
-        *target = argument_create_register(1);
+        //We are reading a register
+        if (token2_matches_str(token, "r0"))
+        {
+            *target = argument_create_register(0);
+        }
+        else if (token2_matches_str(token, "r1"))
+        {
+            *target = argument_create_register(1);
+        }
+        else 
+        {
+            ParseError err;
+            err.line = 1; 
+            err.message = "Invalid argument";
+            vector_parse_error_push(errors, err);
+            return false;
+        }
+        return true;
     }
-    else 
-    {
-        ParseError err;
-        err.line = 1; 
-        err.message = "Invalid argument";
-        vector_parse_error_push(errors, err);
-        return false;
-    }
-    return true;
 }
 
 void
@@ -177,7 +195,7 @@ parse2_program_from_string(const char *content)
     int nb_tokens = 0;
     while (*current_position != '\0')
     {
-        tokens[nb_tokens] = parser2_read_identifier(&current_position);
+        tokens[nb_tokens] = parser2_read_token(&current_position);
         nb_tokens+= 1;
 
         if (*current_position != '\0' && !isspace(*current_position))
