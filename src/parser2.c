@@ -72,6 +72,97 @@ Token2 parser2_read_identifier(const char **input_ptr)
     return result;
 }
 
+enum {
+    INSTRUCTION_PARSE_MATCH, 
+    INSTRUCTION_PARSE_NOT_MATCH, 
+    INSTRUCTION_PARSE_TOO_MANY_ARGS,
+    INSTRUCTION_PARSE_TOO_FEW_ARGS,
+};
+
+bool 
+parser2_verify_nb_arguments(unsigned expected, unsigned actual, VectorParseError *errors)
+{
+    if (expected == actual)
+    {
+        return true;
+    }
+    ParseError err; 
+    err.line = 1; 
+    err.message = expected > actual ? "Missing argument(s)" : "Too many arguments";
+    vector_parse_error_push(errors, err);
+    return false;
+}
+
+bool parser2_read_argument(const Token2 *token, Argument *target, VectorParseError *errors)
+{
+    if (token2_matches_str(token, "r0"))
+    {
+        *target = argument_create_register(0);
+    }
+    else if (token2_matches_str(token, "r1"))
+    {
+        *target = argument_create_register(1);
+    }
+    else 
+    {
+        ParseError err;
+        err.line = 1; 
+        err.message = "Invalid argument";
+        vector_parse_error_push(errors, err);
+        return false;
+    }
+    return true;
+}
+
+void
+read_instruction_from_tokens(
+    Token2* tokens, 
+    unsigned nb_token, 
+    Program2 *program, 
+    VectorParseError *errors) 
+{
+    if (token2_matches_str(&tokens[0], "PICKUP")) 
+    {
+        if (!parser2_verify_nb_arguments(1, nb_token, errors))
+        {
+            return;
+        }
+        Instruction inst;
+        inst.type = INST_PICKUP; 
+        program2_push_instruction(program, inst);
+    }
+    else if (token2_matches_str(&tokens[0], "DROP"))
+    {
+        if (!parser2_verify_nb_arguments(1, nb_token, errors))
+        {
+            return;
+        }
+        Instruction inst;
+        inst.type = INST_DROP; 
+        program2_push_instruction(program, inst);
+    }
+    else if (token2_matches_str(&tokens[0], "MOVE"))
+    {
+        if (!parser2_verify_nb_arguments(2, nb_token, errors))
+        {
+            return;
+        }
+        Instruction inst;
+        inst.type = INST_MOVE;
+        if (parser2_read_argument(&tokens[1], &inst.move_args.dir, errors))
+        {
+            program2_push_instruction(program, inst);
+        }
+    }
+    else 
+    {
+        ParseError err;
+        err.line = 1; 
+        err.message = "Unknown instruction name";
+        vector_parse_error_push(errors, err);
+    }
+}
+
 Parse2Result 
 parse2_program_from_string(const char *content)
 {
@@ -80,43 +171,29 @@ parse2_program_from_string(const char *content)
 
     //First pass, read from the string input
     const char* current_position = content;
-    Token2 token = NULL_TOKEN;
-    if (*current_position != '\0') 
-    {
-        token = parser2_read_identifier(&current_position);
-    }
+    enum { MAX_NB_TOKENS = 5 };
 
-    if (*current_position != '\0' && !isspace(*current_position))
+    Token2 tokens[MAX_NB_TOKENS] = { NULL_TOKEN, NULL_TOKEN, NULL_TOKEN, NULL_TOKEN, NULL_TOKEN };
+    int nb_tokens = 0;
+    while (*current_position != '\0')
     {
-        ParseError err; 
-        err.line = 1; 
-        err.message = "Unexpected character";
-        vector_parse_error_push(&result.errors, err);
-        return result;
+        tokens[nb_tokens] = parser2_read_identifier(&current_position);
+        nb_tokens+= 1;
+
+        if (*current_position != '\0' && !isspace(*current_position))
+        {
+            ParseError err; 
+            err.line = 1; 
+            err.message = "Unexpected character";
+            vector_parse_error_push(&result.errors, err);
+            return result;
+        }
     }
 
     //Second pass, convert what was read into instructions
-    if (!token2_is_null(&token)) 
+    if (nb_tokens > 0) 
     {
-        if (token2_matches_str(&token, "PICKUP")) 
-        {
-            Instruction inst;
-            inst.type = INST_PICKUP; 
-            program2_push_instruction(&result.program, inst);
-        }
-        else if (token2_matches_str(&token, "DROP"))
-        {
-            Instruction inst;
-            inst.type = INST_DROP; 
-            program2_push_instruction(&result.program, inst);
-        }
-        else 
-        {
-            ParseError err;
-            err.line = 1; 
-            err.message = "Unknown instruction name";
-            vector_parse_error_push(&result.errors, err);
-        }
+        read_instruction_from_tokens(tokens, nb_tokens, &result.program, &result.errors);
     }
     return result;
 }
