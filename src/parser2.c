@@ -95,6 +95,7 @@ const struct { const char* key; Argument value; } parser2_builtin_constants[] = 
     { .key = "r5",    .value = { .is_register = true, .register_index = 5 } },
     { .key = "r6",    .value = { .is_register = true, .register_index = 6 } },
     { .key = "r7",    .value = { .is_register = true, .register_index = 7 } },
+    { .key = "HERE",  .value = { .is_register = false, .value = 0 } },
     { .key = "NORTH", .value = { .is_register = false, .value = 1 } },
     { .key = "EAST",  .value = { .is_register = false, .value = 2 } },
     { .key = "SOUTH", .value = { .is_register = false, .value = 3 } },
@@ -192,6 +193,33 @@ read_instruction_from_tokens(
     }
 }
 
+bool 
+parse2_read_tokens_from_line(const char **current_position, unsigned buffer_size, Token2 *buffer, unsigned *nb_tokens, VectorParseError *errors)
+{
+    *nb_tokens = 0;
+    while (**current_position != '\0' && *nb_tokens < buffer_size)
+    {
+        buffer[*nb_tokens] = parser2_read_token(current_position);
+        *nb_tokens+= 1;
+
+        if (**current_position != '\0' && **current_position != ';' && !isspace(**current_position))
+        {
+            ParseError err; 
+            err.line = 1; 
+            err.message = "Unexpected character";
+            vector_parse_error_push(errors, err);
+            return false;
+        }
+        parser2_skip_whitespace(current_position);
+        if (**current_position == ';')
+        {
+            //The rest of the line can be ignored.
+            break;
+        }
+    }
+    return true;
+}
+
 Parse2Result 
 parse2_program_from_string(const char *content)
 {
@@ -203,26 +231,56 @@ parse2_program_from_string(const char *content)
     enum { MAX_NB_TOKENS = 5 };
 
     Token2 tokens[MAX_NB_TOKENS] = { NULL_TOKEN, NULL_TOKEN, NULL_TOKEN, NULL_TOKEN, NULL_TOKEN };
-    int nb_tokens = 0;
-    while (*current_position != '\0')
-    {
-        tokens[nb_tokens] = parser2_read_token(&current_position);
-        nb_tokens+= 1;
-
-        if (*current_position != '\0' && !isspace(*current_position))
-        {
-            ParseError err; 
-            err.line = 1; 
-            err.message = "Unexpected character";
-            vector_parse_error_push(&result.errors, err);
-            return result;
-        }
-    }
+    unsigned nb_tokens = 0;
+    parse2_read_tokens_from_line(&current_position, MAX_NB_TOKENS, tokens, &nb_tokens, &result.errors);
 
     //Second pass, convert what was read into instructions
     if (nb_tokens > 0) 
     {
         read_instruction_from_tokens(tokens, nb_tokens, &result.program, &result.errors);
     }
+    return result;
+}
+
+char* 
+parse2_read_file(const char* file_name) {
+    FILE *file_ptr = fopen(file_name, "r");
+    if (file_ptr == NULL)
+    {
+        return NULL;
+    }
+
+    // Compute the length of the file
+    fseek(file_ptr, 0, SEEK_END);
+    long fsize = ftell(file_ptr);
+    fseek(file_ptr, 0, SEEK_SET);
+
+    // Read the whole content
+    char *content = malloc(fsize + 1);
+    fread(content, fsize, 1, file_ptr);
+    //TODO: fread might have read less than fsize I think?
+    fclose(file_ptr);
+
+    //Make sure the string is null terminated.
+    content[fsize] = 0;
+    return content;
+}
+
+
+Parse2Result parse2_program_from_file(const char *file_path)
+{
+    char* content = parse2_read_file(file_path);
+    if (content == NULL)
+    {
+        Parse2Result result;
+        parse2_result_init(&result);
+        ParseError error; 
+        error.line = 0; 
+        error.message = "Failed to open file";
+        vector_parse_error_push(&result.errors, error); 
+        return result;
+    }
+    Parse2Result result = parse2_program_from_string(content);
+    free(content);
     return result;
 }

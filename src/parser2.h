@@ -27,3 +27,6 @@ parse2_result_clear(Parse2Result *parse_result);
 
 Parse2Result
 parse2_program_from_string(const char *content);
+
+Parse2Result 
+parse2_program_from_file(const char* file_path);
