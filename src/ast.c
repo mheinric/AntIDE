@@ -40,6 +40,15 @@ Instruction instruction_create_move(Argument dir)
     return result;
 }
 
+Instruction instruction_create_arithmetic(InstructionType type, uint8_t target_reg, Argument arg)
+{
+    Instruction result; 
+    result.type = type; 
+    result.arith_args.target_register = target_reg; 
+    result.arith_args.arg = arg;
+    return result;
+}
+
 bool instruction_equal(Instruction first, Instruction second)
 {
     if (first.type != second.type)
@@ -48,29 +57,36 @@ bool instruction_equal(Instruction first, Instruction second)
     }
     switch(first.type)
     {
-        case INST_MOVE: return argument_equal(first.move_args.dir, second.move_args.dir);
-        default: return true;
+        case INST_PICKUP:
+        case INST_DROP: 
+            return true; 
+        case INST_MOVE: 
+            return argument_equal(first.move_args.dir, second.move_args.dir);
+        case INST_SET: 
+            return first.arith_args.target_register == second.arith_args.target_register && 
+                argument_equal(first.arith_args.arg, second.arith_args.arg);
     }
+    return false;
 }
 
-void Program_init(Program *program)
+void program_init(Program *program)
 {
     vector_instruction_init(&program->instructions);
 }
 
-void Program_clear(Program *program)
+void program_clear(Program *program)
 {
     vector_instruction_clear(&program->instructions);
 }
 
 uint64_t
-Program_size(Program * program)
+program_size(Program * program)
 {
     return vector_instruction_size(&program->instructions);
 }
 
 void
-Program_push_instruction(Program *program, Instruction instruction)
+program_push_instruction(Program *program, Instruction instruction)
 {
     vector_instruction_push(&program->instructions, instruction);
 }

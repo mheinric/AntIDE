@@ -2,13 +2,13 @@
 
 void parse_result_init(ParseResult *parse_result)
 {
-    Program_init(&parse_result->program);
+    program_init(&parse_result->program);
     vector_parse_error_init(&parse_result->errors);
 }
 
 void parse_result_clear(ParseResult *parse_result)
 {
-    Program_clear(&parse_result->program);
+    program_clear(&parse_result->program);
     vector_parse_error_clear(&parse_result->errors);
 }
 
@@ -27,7 +27,7 @@ bool Token_is_null(const Token *token)
     return token->begin == NULL && token->end == NULL;
 }
 
-bool Token_matches_str(const Token *token, const char *str)
+bool token_matches_str(const Token *token, const char *str)
 {
     const size_t size = strlen(str);
     if (Token_is_null(token) || size != (size_t) (token->end - token->begin))
@@ -142,7 +142,7 @@ parser_read_argument(const Token *token, Argument *target, VectorParseError *err
         const size_t nb_constants = sizeof(parser_builtin_constants) / sizeof(parser_builtin_constants[0]);
         for (size_t i = 0; i < nb_constants; i++)
         {
-            if (Token_matches_str(token, parser_builtin_constants[i].key))
+            if (token_matches_str(token, parser_builtin_constants[i].key))
             {
                 *target = parser_builtin_constants[i].value;
                 return true;
@@ -156,6 +156,26 @@ parser_read_argument(const Token *token, Argument *target, VectorParseError *err
     }
 }
 
+bool
+parser_read_register(const Token *token, uint8_t *target_reg, VectorParseError *errors)
+{
+    Argument arg; 
+    if (!parser_read_argument(token, &arg, errors))
+    {
+        return false;
+    }
+    if (!arg.is_register)
+    {
+        ParseError err;
+        err.line = 1; 
+        err.message = "Expected a register argument but got a number";
+        vector_parse_error_push(errors, err);
+        return false;
+    }
+    *target_reg = arg.register_index;
+    return true;
+}
+
 void
 read_instruction_from_tokens(
     Token* tokens, 
@@ -163,7 +183,7 @@ read_instruction_from_tokens(
     Program *program, 
     VectorParseError *errors) 
 {
-    if (Token_matches_str(&tokens[0], "PICKUP")) 
+    if (token_matches_str(&tokens[0], "PICKUP")) 
     {
         if (!parser_verify_nb_arguments(1, nb_token, errors))
         {
@@ -171,9 +191,9 @@ read_instruction_from_tokens(
         }
         Instruction inst;
         inst.type = INST_PICKUP; 
-        Program_push_instruction(program, inst);
+        program_push_instruction(program, inst);
     }
-    else if (Token_matches_str(&tokens[0], "DROP"))
+    else if (token_matches_str(&tokens[0], "DROP"))
     {
         if (!parser_verify_nb_arguments(1, nb_token, errors))
         {
@@ -181,9 +201,9 @@ read_instruction_from_tokens(
         }
         Instruction inst;
         inst.type = INST_DROP; 
-        Program_push_instruction(program, inst);
+        program_push_instruction(program, inst);
     }
-    else if (Token_matches_str(&tokens[0], "MOVE"))
+    else if (token_matches_str(&tokens[0], "MOVE"))
     {
         if (!parser_verify_nb_arguments(2, nb_token, errors))
         {
@@ -193,7 +213,21 @@ read_instruction_from_tokens(
         inst.type = INST_MOVE;
         if (parser_read_argument(&tokens[1], &inst.move_args.dir, errors))
         {
-            Program_push_instruction(program, inst);
+            program_push_instruction(program, inst);
+        }
+    }
+    else if (token_matches_str(&tokens[0], "SET"))
+    {
+        if (!parser_verify_nb_arguments(3, nb_token, errors))
+        {
+            return;
+        }
+        Instruction inst;
+        inst.type = INST_SET;
+        if (parser_read_register(&tokens[1], &inst.arith_args.target_register, errors) && 
+            parser_read_argument(&tokens[2], &inst.arith_args.arg, errors))
+        {
+            program_push_instruction(program, inst);
         }
     }
     else 

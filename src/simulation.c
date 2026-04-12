@@ -34,7 +34,7 @@ void simulation_init(Simulation *sim, Program prog)
 
 void simulation_ant_run_step(Simulation *sim, Ant *ant)
 {
-    if (ant->pc >= 0 && (uint32_t) ant->pc < Program_size(&sim->program))
+    if (ant->pc >= 0 && (uint32_t) ant->pc < program_size(&sim->program))
     {
         Instruction inst = sim->program.instructions.begin[ant->pc];
         switch(inst.type) 
@@ -69,6 +69,12 @@ void simulation_ant_run_step(Simulation *sim, Ant *ant)
                 Cell* cell = simulation_get_cell(sim, ant->position);
                 cell->type = CELL_TYPE_FOOD;
                 ant->carrying_food = false;
+                ant->pc += 1;
+                break;
+            }
+            case INST_SET: 
+            {
+                ant->registers[inst.arith_args.target_register] = ant_get_arg_value(ant, inst.arith_args.arg);
                 ant->pc += 1;
                 break;
             }

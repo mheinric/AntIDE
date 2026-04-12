@@ -10,6 +10,7 @@ typedef enum {
     //Jumps
 
     //Arithmetic
+    INST_SET,
 } InstructionType;
 
 typedef struct {
@@ -35,11 +36,15 @@ typedef struct {
     union {
         struct {} no_args;
         struct { Argument dir; } move_args;
+        struct { uint8_t target_register; Argument arg; } arith_args;
     };
 } Instruction;
 
 Instruction 
 instruction_create_move(Argument dir);
+
+Instruction 
+instruction_create_arithmetic(InstructionType type, uint8_t target_reg, Argument arg);
 
 bool 
 instruction_equal(Instruction first, Instruction second);
@@ -55,16 +60,13 @@ typedef struct {
 } Program;
 
 void 
-Program_init(Program *program);
-
-void 
-Program_move(Program *target, Program *source);
+program_init(Program *program);
 
 void
-Program_clear(Program *program);
+program_clear(Program *program);
 
 uint64_t
-Program_size(Program *program);
+program_size(Program *program);
 
 void
-Program_push_instruction(Program *program, Instruction instruction);
+program_push_instruction(Program *program, Instruction instruction);

@@ -19,7 +19,7 @@ void
 test_parse_read_empty_file() {
     ParseResult result = parse_program_from_file("tests/sample_programs/empty_file.asm");
     TEST_ASSERT_EQUAL_UINT64(0, vector_parse_error_size(&result.errors));
-    TEST_ASSERT_EQUAL_UINT64(0, Program_size(&result.program));
+    TEST_ASSERT_EQUAL_UINT64(0, program_size(&result.program));
     parse_result_clear(&result);    
 }
 
@@ -27,7 +27,7 @@ void
 test_parse_read_inexistant_file() {
     ParseResult result = parse_program_from_file("tests/sample_programs/missing-file.asm");
     TEST_ASSERT_EQUAL_UINT64(1, vector_parse_error_size(&result.errors));
-    TEST_ASSERT_EQUAL_UINT64(0, Program_size(&result.program));
+    TEST_ASSERT_EQUAL_UINT64(0, program_size(&result.program));
     parse_result_clear(&result);    
 }
 
@@ -35,7 +35,7 @@ void
 test_parse_empty_program() {
     ParseResult result = parse_program_from_string("");
     TEST_ASSERT_EQUAL_UINT64(0, vector_parse_error_size(&result.errors));
-    TEST_ASSERT_EQUAL_UINT64(0, Program_size(&result.program));
+    TEST_ASSERT_EQUAL_UINT64(0, program_size(&result.program));
     parse_result_clear(&result);
 }
 
@@ -62,7 +62,7 @@ test_parse_single_instruction_no_arg() {
     {
         ParseResult result = parse_program_from_string(inst_str[i]);
         TEST_ASSERT_EQUAL_UINT64_MESSAGE(0, vector_parse_error_size(&result.errors), inst_str[i]);
-        TEST_ASSERT_EQUAL_UINT64_MESSAGE(1, Program_size(&result.program), inst_str[i]);
+        TEST_ASSERT_EQUAL_UINT64_MESSAGE(1, program_size(&result.program), inst_str[i]);
         TEST_ASSERT_EQUAL_MESSAGE(inst_type[i], result.program.instructions.begin->type, inst_str[i]);
         parse_result_clear(&result);
     }
@@ -94,7 +94,27 @@ test_parse_single_instruction_arg1() {
     {
         ParseResult result = parse_program_from_string(test_instructions[i]);
         TEST_ASSERT_EQUAL_UINT64_MESSAGE(0, vector_parse_error_size(&result.errors), test_instructions[i]);
-        TEST_ASSERT_EQUAL_UINT64_MESSAGE(1, Program_size(&result.program), test_instructions[i]);
+        TEST_ASSERT_EQUAL_UINT64_MESSAGE(1, program_size(&result.program), test_instructions[i]);
+        TEST_ASSERT_TRUE_MESSAGE(instruction_equal(expected_results[i], result.program.instructions.begin[0]), test_instructions[i]);
+        parse_result_clear(&result);
+    }
+}
+
+void
+test_parse_single_instruction_arithmetic() {
+    enum { NB_TESTS = 1 };
+    const char* test_instructions[NB_TESTS] = {
+        "SET r5 10",
+    };
+    const Instruction expected_results[NB_TESTS] = {
+        instruction_create_arithmetic(INST_SET, 5, argument_create_value(10)),
+    };
+
+    for (int i =0; i < NB_TESTS; i++)
+    {
+        ParseResult result = parse_program_from_string(test_instructions[i]);
+        TEST_ASSERT_EQUAL_UINT64_MESSAGE(0, vector_parse_error_size(&result.errors), test_instructions[i]);
+        TEST_ASSERT_EQUAL_UINT64_MESSAGE(1, program_size(&result.program), test_instructions[i]);
         TEST_ASSERT_TRUE_MESSAGE(instruction_equal(expected_results[i], result.program.instructions.begin[0]), test_instructions[i]);
         parse_result_clear(&result);
     }
@@ -120,7 +140,7 @@ test_parse_invalid_instruction() {
         ParseResult result = parse_program_from_string(inst_str[i]);
         TEST_ASSERT_EQUAL_UINT64_MESSAGE(1, vector_parse_error_size(&result.errors), inst_str[i]);
         TEST_ASSERT_EQUAL_UINT64_MESSAGE(1, result.errors.begin[0].line, inst_str[i]);
-        TEST_ASSERT_EQUAL_UINT64_MESSAGE(0, Program_size(&result.program), inst_str[i]);
+        TEST_ASSERT_EQUAL_UINT64_MESSAGE(0, program_size(&result.program), inst_str[i]);
         parse_result_clear(&result);
     }
 }
@@ -132,7 +152,7 @@ test_parse_multiple_instructions() {
         "PICKUP";
     ParseResult result = parse_program_from_string(program);
     TEST_ASSERT_EQUAL_UINT64(0, vector_parse_error_size(&result.errors));
-    TEST_ASSERT_EQUAL_UINT64(2, Program_size(&result.program));
+    TEST_ASSERT_EQUAL_UINT64(2, program_size(&result.program));
     parse_result_clear(&result);
 }
 
@@ -145,6 +165,7 @@ run_all_parser_tests(void) {
     RUN_TEST(test_parse_empty_program);
     RUN_TEST(test_parse_single_instruction_no_arg);
     RUN_TEST(test_parse_single_instruction_arg1);
+    RUN_TEST(test_parse_single_instruction_arithmetic);
     RUN_TEST(test_parse_invalid_instruction);
     RUN_TEST(test_parse_multiple_instructions);
     return UNITY_END();
