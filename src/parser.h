@@ -3,7 +3,7 @@
 #include "ast.h"
 
 typedef struct {
-    char* message;
+    const char* message;
     size_t line;
 } ParseError;
 
@@ -22,8 +22,11 @@ typedef struct {
 void 
 parse_result_init(ParseResult *parse_result);
 
+void
+parse_result_init_move(ParseResult *dest, ParseResult *source);
+
 void 
-parse_result_clear(ParseResult *parse_result);
+parse_result_cleanup(ParseResult *parse_result);
 
 void 
 parse_result_print_errors(const ParseResult *parse_result);

@@ -37,7 +37,16 @@ VECTOR_FUN(init) (VECTOR_TYPE *vect) {
 
 static inline 
 void 
-VECTOR_FUN(clear) (VECTOR_TYPE *vect) {
+VECTOR_FUN(init_move) (VECTOR_TYPE *target, VECTOR_TYPE *source) {
+    target->begin = source->begin; 
+    target->end = source->end; 
+    target->capacity = source->capacity;
+    memset(source, 0, sizeof(VECTOR_TYPE));
+}
+
+static inline 
+void 
+VECTOR_FUN(cleanup) (VECTOR_TYPE *vect) {
     if (vect->begin != NULL) 
     {
         free(vect->begin);

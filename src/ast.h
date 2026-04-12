@@ -74,7 +74,10 @@ void
 program_init(Program *program);
 
 void
-program_clear(Program *program);
+program_init_move(Program *target, Program *source);
+
+void
+program_cleanup(Program *program);
 
 uint64_t
 program_size(Program *program);

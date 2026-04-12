@@ -48,7 +48,7 @@ create_test_sim(const char* program)
         parse_result_print_errors(&parse_result);
         TEST_ASSERT_TRUE(false);
     }
-    vector_parse_error_clear(&parse_result.errors);
+    vector_parse_error_cleanup(&parse_result.errors);
     Simulation sim; 
     simulation_init(&sim, parse_result.program);
     return sim;

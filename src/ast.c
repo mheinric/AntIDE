@@ -85,9 +85,14 @@ void program_init(Program *program)
     vector_instruction_init(&program->instructions);
 }
 
-void program_clear(Program *program)
+void program_init_move(Program *target, Program *source)
 {
-    vector_instruction_clear(&program->instructions);
+    vector_instruction_init_move(&target->instructions, &source->instructions);
+}
+
+void program_cleanup(Program *program)
+{
+    vector_instruction_cleanup(&program->instructions);
 }
 
 uint64_t
