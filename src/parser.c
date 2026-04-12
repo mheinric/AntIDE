@@ -1,12 +1,12 @@
 #include "parser.h"
 
-void parse_result_init(parseResult *parse_result)
+void parse_result_init(ParseResult *parse_result)
 {
     Program_init(&parse_result->program);
     vector_parse_error_init(&parse_result->errors);
 }
 
-void parse_result_clear(parseResult *parse_result)
+void parse_result_clear(ParseResult *parse_result)
 {
     Program_clear(&parse_result->program);
     vector_parse_error_clear(&parse_result->errors);
@@ -51,6 +51,18 @@ parser_has_line_ended(const char** input_ptr) {
 void
 parser_skip_whitespace(const char** input_ptr) {
     while (!parser_has_line_ended(input_ptr) && isspace(**input_ptr)) {
+        (*input_ptr)++;
+    }
+}
+
+void
+parser_skip_line(const char** input_ptr) {
+    while (!parser_has_line_ended(input_ptr))
+    {
+        (*input_ptr)++;
+    }
+    if (**input_ptr == '\n')
+    {
         (*input_ptr)++;
     }
 }
@@ -197,7 +209,8 @@ bool
 parse_read_tokens_from_line(const char **current_position, unsigned buffer_size, Token *buffer, unsigned *nb_tokens, VectorParseError *errors)
 {
     *nb_tokens = 0;
-    while (**current_position != '\0' && *nb_tokens < buffer_size)
+    //TODO: something to be done if the line contains only comments
+    while (!parser_has_line_ended(current_position) && *nb_tokens < buffer_size)
     {
         buffer[*nb_tokens] = parser_read_token(current_position);
         *nb_tokens+= 1;
@@ -208,6 +221,7 @@ parse_read_tokens_from_line(const char **current_position, unsigned buffer_size,
             err.line = 1; 
             err.message = "Unexpected character";
             vector_parse_error_push(errors, err);
+            parser_skip_line(current_position);
             return false;
         }
         parser_skip_whitespace(current_position);
@@ -217,27 +231,36 @@ parse_read_tokens_from_line(const char **current_position, unsigned buffer_size,
             break;
         }
     }
+    //Skip the remaining of the line, which is either just the newline or comments.
+    parser_skip_line(current_position);
     return true;
 }
 
-parseResult 
+ParseResult 
 parse_program_from_string(const char *content)
 {
-    parseResult result;
+    ParseResult result;
     parse_result_init(&result);
 
     //First pass, read from the string input
     const char* current_position = content;
     enum { MAX_NB_TOKENS = 5 };
 
-    Token tokens[MAX_NB_TOKENS] = { NULL_TOKEN, NULL_TOKEN, NULL_TOKEN, NULL_TOKEN, NULL_TOKEN };
-    unsigned nb_tokens = 0;
-    parse_read_tokens_from_line(&current_position, MAX_NB_TOKENS, tokens, &nb_tokens, &result.errors);
-
-    //Second pass, convert what was read into instructions
-    if (nb_tokens > 0) 
+    while (*current_position != '\0')
     {
-        read_instruction_from_tokens(tokens, nb_tokens, &result.program, &result.errors);
+        Token tokens[MAX_NB_TOKENS] = { NULL_TOKEN, NULL_TOKEN, NULL_TOKEN, NULL_TOKEN, NULL_TOKEN };
+        unsigned nb_tokens = 0;
+        if (!parse_read_tokens_from_line(&current_position, MAX_NB_TOKENS, tokens, &nb_tokens, &result.errors))
+        {
+            //An error was encountered in the first pass of parsing this line, we skip it.
+            continue; 
+        }
+
+        //Second pass, convert what was read into instructions
+        if (nb_tokens > 0) 
+        {
+            read_instruction_from_tokens(tokens, nb_tokens, &result.program, &result.errors);
+        }
     }
     return result;
 }
@@ -267,12 +290,12 @@ parse_read_file(const char* file_name) {
 }
 
 
-parseResult parse_program_from_file(const char *file_path)
+ParseResult parse_program_from_file(const char *file_path)
 {
     char* content = parse_read_file(file_path);
     if (content == NULL)
     {
-        parseResult result;
+        ParseResult result;
         parse_result_init(&result);
         ParseError error; 
         error.line = 0; 
@@ -280,7 +303,7 @@ parseResult parse_program_from_file(const char *file_path)
         vector_parse_error_push(&result.errors, error); 
         return result;
     }
-    parseResult result = parse_program_from_string(content);
+    ParseResult result = parse_program_from_string(content);
     free(content);
     return result;
 }

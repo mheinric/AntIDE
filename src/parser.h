@@ -17,16 +17,16 @@ typedef struct {
 typedef struct {
     Program program;
     VectorParseError errors;
-} parseResult;
+} ParseResult;
 
 void 
-parse_result_init(parseResult *parse_result);
+parse_result_init(ParseResult *parse_result);
 
 void 
-parse_result_clear(parseResult *parse_result);
+parse_result_clear(ParseResult *parse_result);
 
-parseResult
+ParseResult
 parse_program_from_string(const char *content);
 
-parseResult 
+ParseResult 
 parse_program_from_file(const char* file_path);

@@ -17,7 +17,7 @@ test_instruction_equality()
 
 void 
 test_parse_read_empty_file() {
-    parseResult result = parse_program_from_file("tests/sample_programs/empty_file.asm");
+    ParseResult result = parse_program_from_file("tests/sample_programs/empty_file.asm");
     TEST_ASSERT_EQUAL_UINT64(0, vector_parse_error_size(&result.errors));
     TEST_ASSERT_EQUAL_UINT64(0, Program_size(&result.program));
     parse_result_clear(&result);    
@@ -25,7 +25,7 @@ test_parse_read_empty_file() {
 
 void 
 test_parse_read_inexistant_file() {
-    parseResult result = parse_program_from_file("tests/sample_programs/missing-file.asm");
+    ParseResult result = parse_program_from_file("tests/sample_programs/missing-file.asm");
     TEST_ASSERT_EQUAL_UINT64(1, vector_parse_error_size(&result.errors));
     TEST_ASSERT_EQUAL_UINT64(0, Program_size(&result.program));
     parse_result_clear(&result);    
@@ -33,7 +33,7 @@ test_parse_read_inexistant_file() {
 
 void 
 test_parse_empty_program() {
-    parseResult result = parse_program_from_string("");
+    ParseResult result = parse_program_from_string("");
     TEST_ASSERT_EQUAL_UINT64(0, vector_parse_error_size(&result.errors));
     TEST_ASSERT_EQUAL_UINT64(0, Program_size(&result.program));
     parse_result_clear(&result);
@@ -60,7 +60,7 @@ test_parse_single_instruction_no_arg() {
 
     for (int i = 0; i < NB_ITEMS; i++)
     {
-        parseResult result = parse_program_from_string(inst_str[i]);
+        ParseResult result = parse_program_from_string(inst_str[i]);
         TEST_ASSERT_EQUAL_UINT64_MESSAGE(0, vector_parse_error_size(&result.errors), inst_str[i]);
         TEST_ASSERT_EQUAL_UINT64_MESSAGE(1, Program_size(&result.program), inst_str[i]);
         TEST_ASSERT_EQUAL_MESSAGE(inst_type[i], result.program.instructions.begin->type, inst_str[i]);
@@ -92,7 +92,7 @@ test_parse_single_instruction_arg1() {
 
     for (int i = 0; i < NB_TESTS; i++)
     {
-        parseResult result = parse_program_from_string(test_instructions[i]);
+        ParseResult result = parse_program_from_string(test_instructions[i]);
         TEST_ASSERT_EQUAL_UINT64_MESSAGE(0, vector_parse_error_size(&result.errors), test_instructions[i]);
         TEST_ASSERT_EQUAL_UINT64_MESSAGE(1, Program_size(&result.program), test_instructions[i]);
         TEST_ASSERT_TRUE_MESSAGE(instruction_equal(expected_results[i], result.program.instructions.begin[0]), test_instructions[i]);
@@ -117,7 +117,7 @@ test_parse_invalid_instruction() {
 
     for (int i = 0; i < NB_ITEMS; i++)
     {
-        parseResult result = parse_program_from_string(inst_str[i]);
+        ParseResult result = parse_program_from_string(inst_str[i]);
         TEST_ASSERT_EQUAL_UINT64_MESSAGE(1, vector_parse_error_size(&result.errors), inst_str[i]);
         TEST_ASSERT_EQUAL_UINT64_MESSAGE(1, result.errors.begin[0].line, inst_str[i]);
         TEST_ASSERT_EQUAL_UINT64_MESSAGE(0, Program_size(&result.program), inst_str[i]);
@@ -125,7 +125,19 @@ test_parse_invalid_instruction() {
     }
 }
 
-int run_all_parser_tests(void) {
+void 
+test_parse_multiple_instructions() {
+    const char* program = 
+        "MOVE r0\n"
+        "PICKUP";
+    ParseResult result = parse_program_from_string(program);
+    TEST_ASSERT_EQUAL_UINT64(0, vector_parse_error_size(&result.errors));
+    TEST_ASSERT_EQUAL_UINT64(2, Program_size(&result.program));
+    parse_result_clear(&result);
+}
+
+int 
+run_all_parser_tests(void) {
     UNITY_BEGIN();
     RUN_TEST(test_instruction_equality);
     RUN_TEST(test_parse_read_empty_file);
@@ -134,5 +146,6 @@ int run_all_parser_tests(void) {
     RUN_TEST(test_parse_single_instruction_no_arg);
     RUN_TEST(test_parse_single_instruction_arg1);
     RUN_TEST(test_parse_invalid_instruction);
+    RUN_TEST(test_parse_multiple_instructions);
     return UNITY_END();
 }
