@@ -53,24 +53,24 @@ bool instruction_equal(Instruction first, Instruction second)
     }
 }
 
-void program2_init(Program2 *program)
+void Program_init(Program *program)
 {
     vector_instruction_init(&program->instructions);
 }
 
-void program2_clear(Program2 *program)
+void Program_clear(Program *program)
 {
     vector_instruction_clear(&program->instructions);
 }
 
 uint64_t
-program2_size(Program2 * program)
+Program_size(Program * program)
 {
     return vector_instruction_size(&program->instructions);
 }
 
 void
-program2_push_instruction(Program2 *program, Instruction instruction)
+Program_push_instruction(Program *program, Instruction instruction)
 {
     vector_instruction_push(&program->instructions, instruction);
 }

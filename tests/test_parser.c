@@ -1,94 +1,138 @@
 #include "unity/unity.h"
 #include "parser.h"
 
-void test_parse_identifier(void) {
-    const char* input = "id1 id2";
-    const char* current_pos = input;
-    Token res1 = read_identifier(&current_pos);
-    Token res2 = read_identifier(&current_pos);
-    Token res3 = read_identifier(&current_pos);
-
-    TEST_ASSERT_EQUAL_PTR(input, res1.begin); //First identifier is at the beginning of the string
-    TEST_ASSERT_EQUAL_PTR(input + 3, res1.end);
-    TEST_ASSERT_EQUAL_PTR(input + 4, res2.begin); //Second identifier starts at 4
-    TEST_ASSERT_EQUAL_PTR(input + 7, res2.end);
-    TEST_ASSERT_EQUAL_PTR(NULL, res3.begin);
-    TEST_ASSERT_EQUAL_PTR(NULL, res3.end);
+void 
+test_instruction_equality() 
+{
+    TEST_ASSERT_FALSE(instruction_equal(
+        instruction_create_move(argument_create_register(0)), 
+        instruction_create_move(argument_create_register(1))
+    ));
+    TEST_ASSERT_FALSE(instruction_equal(
+        instruction_create_move(argument_create_value(0)), 
+        instruction_create_move(argument_create_value(1))
+    ));
 }
 
-void test_parse_empty_file(void) {
-    Program program = parse_program_from_file("tests/sample_programs/empty_file.asm");
-    TEST_ASSERT_EQUAL_PTR(program.instructions.begin, program.instructions.end);
+
+void 
+test_parse_read_empty_file() {
+    parseResult result = parse_program_from_file("tests/sample_programs/empty_file.asm");
+    TEST_ASSERT_EQUAL_UINT64(0, vector_parse_error_size(&result.errors));
+    TEST_ASSERT_EQUAL_UINT64(0, Program_size(&result.program));
+    parse_result_clear(&result);    
 }
 
-void test_parse_single_instruction(void) {
-    Program program = parse_program_from_file("tests/sample_programs/single_instruction.asm");
-    TEST_ASSERT_EQUAL_UINT64(1, program_nb_instructions(&program));
-    TEST_ASSERT_TRUE(token_equals_str(&program.instructions.begin->name, "PICKUP"));
-    token_is_null(program.instructions.begin->arguments);
+void 
+test_parse_read_inexistant_file() {
+    parseResult result = parse_program_from_file("tests/sample_programs/missing-file.asm");
+    TEST_ASSERT_EQUAL_UINT64(1, vector_parse_error_size(&result.errors));
+    TEST_ASSERT_EQUAL_UINT64(0, Program_size(&result.program));
+    parse_result_clear(&result);    
 }
 
-void test_parse_instruction_arguments(void) {
-    Program program = parse_program_from_string("MOVE r0");
-    TEST_ASSERT_EQUAL_UINT64(1, program_nb_instructions(&program));
-    TEST_ASSERT_TRUE(token_equals_str(program.instructions.begin->arguments, "r0"));
-    TEST_ASSERT_TRUE(token_is_null(program.instructions.begin->arguments + 1));
+void 
+test_parse_empty_program() {
+    parseResult result = parse_program_from_string("");
+    TEST_ASSERT_EQUAL_UINT64(0, vector_parse_error_size(&result.errors));
+    TEST_ASSERT_EQUAL_UINT64(0, Program_size(&result.program));
+    parse_result_clear(&result);
 }
 
-void test_parse_multiple_instructions(void) {
-    Program program = parse_program_from_string("MOVE r0\nSNIFF RED_CH NORTH");
-    TEST_ASSERT_EQUAL_UINT64(2, program_nb_instructions(&program));
-}
+void 
+test_parse_single_instruction_no_arg() {
+    enum { NB_ITEMS = 5 };
+    const char* inst_str[NB_ITEMS] = {
+        "PICKUP", 
+        "pickup",
+        "DROP",
+        "drop",
+        "drop ; This is a comment",
+    };
+    
+    InstructionType inst_type[NB_ITEMS] = {
+        INST_PICKUP, 
+        INST_PICKUP, 
+        INST_DROP,
+        INST_DROP,
+        INST_DROP
+    };
 
-void test_parse_comments(void) {
-    Program program = parse_program_from_string("; this is commented and should be ignored MOVE r0\nSNIFF RED_CH NORTH ; comment at the end of an instruction");
-    TEST_ASSERT_EQUAL_UINT64(1, program_nb_instructions(&program));
-}
-
-void test_parse_label(void) {
-    Program program = parse_program_from_string("main:\nJMP main");
-    TEST_ASSERT_EQUAL_UINT64(1, program_nb_labels(&program));
-    TEST_ASSERT_EQUAL_UINT64(1, program_nb_instructions(&program));
-}
-
-void test_insert_instructions(void) {
-    InstructionLinesVect vect; 
-    instruction_lines_vect_init(&vect, 3); 
-    InstructionLine inst; 
-    instruction_line_init(&inst);
-    for (int i = 0; i < 10; i++)
+    for (int i = 0; i < NB_ITEMS; i++)
     {
-        instruction_lines_vect_push(&vect, inst);
+        parseResult result = parse_program_from_string(inst_str[i]);
+        TEST_ASSERT_EQUAL_UINT64_MESSAGE(0, vector_parse_error_size(&result.errors), inst_str[i]);
+        TEST_ASSERT_EQUAL_UINT64_MESSAGE(1, Program_size(&result.program), inst_str[i]);
+        TEST_ASSERT_EQUAL_MESSAGE(inst_type[i], result.program.instructions.begin->type, inst_str[i]);
+        parse_result_clear(&result);
     }
-    TEST_ASSERT_EQUAL_UINT32(10, instruction_lines_vect_size(&vect));
-    TEST_ASSERT_TRUE(vect.capacity >= instruction_lines_vect_size(&vect));
 }
 
-void test_insert_labels(void) {
-    const char* data = "abcdefghijklmopqrstu";
-    LabelsMap map; 
-    labels_map_init(&map, 3); 
-    for (int i = 0; i < 10; i++)
+void 
+test_parse_single_instruction_arg1() {
+    //Test instructions with a single argument.
+    enum { NB_TESTS = 6 };
+    const char* test_instructions[NB_TESTS] = {
+        "MOVE r0", 
+        "MOVE r1",
+        "MOVE 2",
+        "MOVE -165",
+        "MOVE NORTH",
+        "MOVE HERE",
+    };
+
+    const Instruction expected_results[NB_TESTS] = {
+        instruction_create_move(argument_create_register(0)),
+        instruction_create_move(argument_create_register(1)),
+        instruction_create_move(argument_create_value(2)),
+        instruction_create_move(argument_create_value(-165)),
+        instruction_create_move(argument_create_value(1)),
+        instruction_create_move(argument_create_value(0)),
+    };
+
+    for (int i = 0; i < NB_TESTS; i++)
     {
-        Token tok; 
-        tok.begin = data + i; 
-        tok.end = data + i + 1;
-        labels_map_insert(&map, tok, i);
+        parseResult result = parse_program_from_string(test_instructions[i]);
+        TEST_ASSERT_EQUAL_UINT64_MESSAGE(0, vector_parse_error_size(&result.errors), test_instructions[i]);
+        TEST_ASSERT_EQUAL_UINT64_MESSAGE(1, Program_size(&result.program), test_instructions[i]);
+        TEST_ASSERT_TRUE_MESSAGE(instruction_equal(expected_results[i], result.program.instructions.begin[0]), test_instructions[i]);
+        parse_result_clear(&result);
     }
-    TEST_ASSERT_EQUAL_UINT32(10, labels_map_size(&map));
-    TEST_ASSERT_TRUE(map.capacity >= labels_map_size(&map));
+}
+
+void 
+test_parse_invalid_instruction() {
+    enum { NB_ITEMS = 6 };
+    const char* inst_str[NB_ITEMS] = {
+        "toto",
+        "foo-bar",
+        //Missing arguments
+        "MOVE",
+        //Too many arguments
+        "PICKUP test",
+        "DROP HERE",
+        //Invalid number format
+        "MOVE 1ABD", 
+    };
+
+    for (int i = 0; i < NB_ITEMS; i++)
+    {
+        parseResult result = parse_program_from_string(inst_str[i]);
+        TEST_ASSERT_EQUAL_UINT64_MESSAGE(1, vector_parse_error_size(&result.errors), inst_str[i]);
+        TEST_ASSERT_EQUAL_UINT64_MESSAGE(1, result.errors.begin[0].line, inst_str[i]);
+        TEST_ASSERT_EQUAL_UINT64_MESSAGE(0, Program_size(&result.program), inst_str[i]);
+        parse_result_clear(&result);
+    }
 }
 
 int run_all_parser_tests(void) {
     UNITY_BEGIN();
-    RUN_TEST(test_parse_identifier);
-    RUN_TEST(test_parse_empty_file);
-    RUN_TEST(test_parse_single_instruction);
-    RUN_TEST(test_parse_instruction_arguments);
-    RUN_TEST(test_parse_multiple_instructions);
-    RUN_TEST(test_parse_comments);
-    RUN_TEST(test_parse_label);
-    RUN_TEST(test_insert_instructions);
-    RUN_TEST(test_insert_labels);
+    RUN_TEST(test_instruction_equality);
+    RUN_TEST(test_parse_read_empty_file);
+    RUN_TEST(test_parse_read_inexistant_file);
+    RUN_TEST(test_parse_empty_program);
+    RUN_TEST(test_parse_single_instruction_no_arg);
+    RUN_TEST(test_parse_single_instruction_arg1);
+    RUN_TEST(test_parse_invalid_instruction);
     return UNITY_END();
 }

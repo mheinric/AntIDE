@@ -14,13 +14,13 @@ int
 run_all_parser_tests(void);
 
 int 
-run_all_parser2_tests(void);
+run_all_parser_tests(void);
 
 int main(void) {
     int res;
     res = run_all_parser_tests();
     if (res != 0) return res;
-    res = run_all_parser2_tests();
+    res = run_all_parser_tests();
     if (res != 0) return res;
     return res;
 }

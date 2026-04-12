@@ -6,11 +6,11 @@ SRC_DIR = src
 TEST_DIR = tests
 UNITY_DIR = tests/unity
 
-SRC = $(SRC_DIR)/parser.c $(SRC_DIR)/parser2.c  $(SRC_DIR)/ast.c
-HEADERS = $(SRC_DIR)/utils.h $(SRC_DIR)/vector.h $(SRC_DIR)/parser.h $(SRC_DIR)/parser2.h $(SRC_DIR)/ast.h 
+SRC = $(SRC_DIR)/parser.c $(SRC_DIR)/ast.c
+HEADERS = $(SRC_DIR)/utils.h $(SRC_DIR)/vector.h $(SRC_DIR)/parser.h $(SRC_DIR)/ast.h 
 EXECUTABLE_SRC = $(SRC_DIR)/main.c $(SRC)
 UNITY_SRC = $(UNITY_DIR)/unity.c
-TEST_SRC = $(TEST_DIR)/test_main.c $(TEST_DIR)/test_parser.c $(TEST_DIR)/test_parser2.c
+TEST_SRC = $(TEST_DIR)/test_main.c $(TEST_DIR)/test_parser.c
 
 BIN = bin
 EXECUTABLE = $(BIN)/ant_check

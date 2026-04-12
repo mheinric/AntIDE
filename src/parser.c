@@ -1,121 +1,254 @@
-#include "utils.h"
 #include "parser.h"
 
-bool token_equals_str(const Token *token, const char *str)
+void parse_result_init(parseResult *parse_result)
 {
-    const size_t size = strlen(str);
-    return !token_is_null(token) && 
-        size == (long unsigned int) (token->end - token->begin) && 
-        strncmp(token->begin, str, size) == 0;
+    Program_init(&parse_result->program);
+    vector_parse_error_init(&parse_result->errors);
 }
 
-bool token_is_null(const Token *token)
+void parse_result_clear(parseResult *parse_result)
+{
+    Program_clear(&parse_result->program);
+    vector_parse_error_clear(&parse_result->errors);
+}
+
+typedef struct {
+    const char* begin; 
+    const char* end;
+} Token;
+
+static const Token NULL_TOKEN = {
+    .begin = NULL,
+    .end = NULL
+};
+
+bool Token_is_null(const Token *token)
 {
     return token->begin == NULL && token->end == NULL;
 }
 
-void token_print(const Token *token)
+bool Token_matches_str(const Token *token, const char *str)
 {
-    if (token_is_null(token))
+    const size_t size = strlen(str);
+    if (Token_is_null(token) || size != (size_t) (token->end - token->begin))
     {
-        printf("NULL_TOKEN");
-        return;
+        return false;
     }
-    printf("'%.*s'", (int) (token->end - token->begin), token->begin);
+    for (size_t i = 0; i < size; i++) {
+        if (token->begin[i] < 0 || tolower(token->begin[i]) != tolower(str[i]))
+        {
+            return false;
+        }
+    }
+    return true;
 }
 
-void instruction_line_init(InstructionLine *instr)
-{
-    instr->name = NULL_TOKEN;
-    for (uint64_t i = 0; i < MAX_INSTRUCTION_ARGS; i++) {
-        instr->arguments[i] = NULL_TOKEN;
+bool 
+parser_has_line_ended(const char** input_ptr) {
+    return **input_ptr == '\0' || **input_ptr == '\n';
+}
+
+void
+parser_skip_whitespace(const char** input_ptr) {
+    while (!parser_has_line_ended(input_ptr) && isspace(**input_ptr)) {
+        (*input_ptr)++;
     }
 }
 
-void instruction_lines_vect_init(InstructionLinesVect *vect, uint64_t size)
+Token parser_read_token(const char **input_ptr)
 {
-    vect->begin = calloc(size, sizeof(InstructionLine));
-    vect->end = vect->begin;
-    vect->capacity = size;
+    parser_skip_whitespace(input_ptr);
+    if (parser_has_line_ended(input_ptr)) {
+        return NULL_TOKEN;
+    }
+    const char* result_begin = *input_ptr;
+
+    while (isalnum(**input_ptr) || **input_ptr == '_' || **input_ptr == '-') {
+        (*input_ptr)++;
+    }
+    Token result; 
+    result.begin = result_begin;
+    result.end = *input_ptr;
+    return result;
 }
 
-uint64_t instruction_lines_vect_size(const InstructionLinesVect *vect)
+bool 
+parser_verify_nb_arguments(unsigned expected, unsigned actual, VectorParseError *errors)
 {
-    return vect->end - vect->begin;
-}
-
-void instruction_lines_vect_push(InstructionLinesVect *vect, InstructionLine inst)
-{
-    const uint64_t size = instruction_lines_vect_size(vect);
-    if (size >= vect->capacity) 
+    if (expected == actual)
     {
-        //Allocate new memory
-        const uint64_t new_capacity = vect->capacity * 2;
-        InstructionLine* new_content = calloc(new_capacity, sizeof(InstructionLine));
-        //Copy data to the new memory
-        memcpy(new_content, vect->begin, vect->capacity * sizeof(InstructionLine));
-        //Free old memory
-        free(vect->begin);
-        vect->capacity = new_capacity; 
-        vect->begin = new_content; 
-        vect->end = vect->begin + size;
+        return true;
     }
-    *vect->end = inst;
-    vect->end++;
+    ParseError err; 
+    err.line = 1; 
+    err.message = expected > actual ? "Missing argument(s)" : "Too many arguments";
+    vector_parse_error_push(errors, err);
+    return false;
 }
 
-void labels_map_init(LabelsMap *map, uint64_t capacity)
-{
-    map->begin = calloc(capacity, sizeof(LabelsMapEntry));
-    map->end = map->begin; 
-    map->capacity = capacity;
-}
+const struct { const char* key; Argument value; } parser_builtin_constants[] = {
+    { .key = "r0",    .value = { .is_register = true, .register_index = 0 } },
+    { .key = "r1",    .value = { .is_register = true, .register_index = 1 } },
+    { .key = "r2",    .value = { .is_register = true, .register_index = 2 } },
+    { .key = "r3",    .value = { .is_register = true, .register_index = 3 } },
+    { .key = "r4",    .value = { .is_register = true, .register_index = 4 } },
+    { .key = "r5",    .value = { .is_register = true, .register_index = 5 } },
+    { .key = "r6",    .value = { .is_register = true, .register_index = 6 } },
+    { .key = "r7",    .value = { .is_register = true, .register_index = 7 } },
+    { .key = "HERE",  .value = { .is_register = false, .value = 0 } },
+    { .key = "NORTH", .value = { .is_register = false, .value = 1 } },
+    { .key = "EAST",  .value = { .is_register = false, .value = 2 } },
+    { .key = "SOUTH", .value = { .is_register = false, .value = 3 } },
+    { .key = "WEST",  .value = { .is_register = false, .value = 4 } },
+};
 
-uint64_t labels_map_size(LabelsMap *map)
+bool 
+parser_read_argument(const Token *token, Argument *target, VectorParseError *errors)
 {
-    return map->end - map->begin;
-}
-
-void labels_map_insert(LabelsMap *map, Token token, uint64_t pos)
-{
-    const uint64_t size = labels_map_size(map);
-    if ((uint64_t) (map->end - map->begin) >= map->capacity) {
-        //Allocate new memory
-        const uint64_t new_capacity = map->capacity * 2;
-        LabelsMapEntry* new_content = calloc(new_capacity, sizeof(LabelsMapEntry));
-        //Copy data to the new memory
-        memcpy(new_content, map->begin, map->capacity * sizeof(LabelsMapEntry));
-        //Free old memory
-        free(map->begin);
-        map->capacity = new_capacity; 
-        map->begin = new_content; 
-        map->end = map->begin + size;
+    if (isdigit(token->begin[0]) || token->begin[0] == '-')
+    {
+        //We are reading a number
+        bool is_negative = token->begin[0] == '-';
+        int32_t value = 0;
+        for (const char* it = token->begin + is_negative; it != token->end; it++)
+        {
+            if (!isdigit(*it))
+            {
+                ParseError err; 
+                err.line = 1; 
+                err.message = "Invalid number format";
+                vector_parse_error_push(errors, err);
+                return false;
+            }
+            value = 10 * value + (*it - '0');
+        }
+        *target = argument_create_value(is_negative ? -value : value);
+        return true;
     }
-    map->end->key = token;
-    map->end->value = pos;
-    map->end++;
+    else
+    {
+        const size_t nb_constants = sizeof(parser_builtin_constants) / sizeof(parser_builtin_constants[0]);
+        for (size_t i = 0; i < nb_constants; i++)
+        {
+            if (Token_matches_str(token, parser_builtin_constants[i].key))
+            {
+                *target = parser_builtin_constants[i].value;
+                return true;
+            }
+        }
+        ParseError err;
+        err.line = 1; 
+        err.message = "Invalid argument";
+        vector_parse_error_push(errors, err);
+        return false;
+    }
 }
 
-void program_init(Program *prog)
+void
+read_instruction_from_tokens(
+    Token* tokens, 
+    unsigned nb_token, 
+    Program *program, 
+    VectorParseError *errors) 
 {
-    instruction_lines_vect_init(&prog->instructions, 5); //Arbitrary initial capacity
-    labels_map_init(&prog->labels, 5);
+    if (Token_matches_str(&tokens[0], "PICKUP")) 
+    {
+        if (!parser_verify_nb_arguments(1, nb_token, errors))
+        {
+            return;
+        }
+        Instruction inst;
+        inst.type = INST_PICKUP; 
+        Program_push_instruction(program, inst);
+    }
+    else if (Token_matches_str(&tokens[0], "DROP"))
+    {
+        if (!parser_verify_nb_arguments(1, nb_token, errors))
+        {
+            return;
+        }
+        Instruction inst;
+        inst.type = INST_DROP; 
+        Program_push_instruction(program, inst);
+    }
+    else if (Token_matches_str(&tokens[0], "MOVE"))
+    {
+        if (!parser_verify_nb_arguments(2, nb_token, errors))
+        {
+            return;
+        }
+        Instruction inst;
+        inst.type = INST_MOVE;
+        if (parser_read_argument(&tokens[1], &inst.move_args.dir, errors))
+        {
+            Program_push_instruction(program, inst);
+        }
+    }
+    else 
+    {
+        ParseError err;
+        err.line = 1; 
+        err.message = "Unknown instruction name";
+        vector_parse_error_push(errors, err);
+    }
 }
 
-uint64_t program_nb_instructions(Program *prog)
+bool 
+parse_read_tokens_from_line(const char **current_position, unsigned buffer_size, Token *buffer, unsigned *nb_tokens, VectorParseError *errors)
 {
-    return instruction_lines_vect_size(&prog->instructions);
+    *nb_tokens = 0;
+    while (**current_position != '\0' && *nb_tokens < buffer_size)
+    {
+        buffer[*nb_tokens] = parser_read_token(current_position);
+        *nb_tokens+= 1;
+
+        if (**current_position != '\0' && **current_position != ';' && !isspace(**current_position))
+        {
+            ParseError err; 
+            err.line = 1; 
+            err.message = "Unexpected character";
+            vector_parse_error_push(errors, err);
+            return false;
+        }
+        parser_skip_whitespace(current_position);
+        if (**current_position == ';')
+        {
+            //The rest of the line can be ignored.
+            break;
+        }
+    }
+    return true;
 }
 
-uint64_t program_nb_labels(Program *prog)
+parseResult 
+parse_program_from_string(const char *content)
 {
-    return labels_map_size(&prog->labels);
+    parseResult result;
+    parse_result_init(&result);
+
+    //First pass, read from the string input
+    const char* current_position = content;
+    enum { MAX_NB_TOKENS = 5 };
+
+    Token tokens[MAX_NB_TOKENS] = { NULL_TOKEN, NULL_TOKEN, NULL_TOKEN, NULL_TOKEN, NULL_TOKEN };
+    unsigned nb_tokens = 0;
+    parse_read_tokens_from_line(&current_position, MAX_NB_TOKENS, tokens, &nb_tokens, &result.errors);
+
+    //Second pass, convert what was read into instructions
+    if (nb_tokens > 0) 
+    {
+        read_instruction_from_tokens(tokens, nb_tokens, &result.program, &result.errors);
+    }
+    return result;
 }
 
 char* 
-read_file(const char* file_name) {
+parse_read_file(const char* file_name) {
     FILE *file_ptr = fopen(file_name, "r");
-    //TODO: verify that the file was correctly opened.
+    if (file_ptr == NULL)
+    {
+        return NULL;
+    }
 
     // Compute the length of the file
     fseek(file_ptr, 0, SEEK_END);
@@ -133,98 +266,21 @@ read_file(const char* file_name) {
     return content;
 }
 
-Program
-parse_program_from_file(const char* file_name) {
-    char* content = read_file(file_name);
-    //TODO memory leak here content is never freed (but it has to remain alive because the tokens in the resulting program depend on it).
-    return parse_program_from_string(content);
-}
 
-Program
-parse_program_from_string(const char* content) {
-    const char* current_position = content;
-
-    Program result;
-    program_init(&result);
-
-    while (*current_position != '\0') {
-        read_program_line(&result, &current_position);
-    }
-    return result;
-}
-
-bool 
-has_line_ended(const char** input_ptr) {
-    return **input_ptr == '\0' || **input_ptr == '\n';
-}
-
-void
-skip_whitespace(const char** input_ptr) {
-    while (!has_line_ended(input_ptr) && isspace(**input_ptr)) {
-        (*input_ptr)++;
-    }
-}
-
-Token read_identifier(const char **input_ptr)
+parseResult parse_program_from_file(const char *file_path)
 {
-    skip_whitespace(input_ptr);
-    if (has_line_ended(input_ptr)) {
-        return NULL_TOKEN;
+    char* content = parse_read_file(file_path);
+    if (content == NULL)
+    {
+        parseResult result;
+        parse_result_init(&result);
+        ParseError error; 
+        error.line = 0; 
+        error.message = "Failed to open file";
+        vector_parse_error_push(&result.errors, error); 
+        return result;
     }
-    const char* result_begin = *input_ptr;
-
-    while (isalnum(**input_ptr) || **input_ptr == '_') {
-        (*input_ptr)++;
-    }
-    Token result; 
-    result.begin = result_begin;
-    result.end = *input_ptr;
+    parseResult result = parse_program_from_string(content);
+    free(content);
     return result;
-}
-
-void skip_line(const char **input_ptr) {
-    while(!has_line_ended(input_ptr)) {
-        (*input_ptr)++;
-    }
-    if (**input_ptr == '\n') {
-        (*input_ptr)++;
-    }
-}
-
-void read_program_line(Program *prog, const char **input_ptr)
-{
-    skip_whitespace(input_ptr);
-    if (has_line_ended(input_ptr))
-    {
-        //Empty line
-        return;
-    }
-    if (**input_ptr == ';') {
-        //Starting a comment, skip line.
-        skip_line(input_ptr);
-    }
-
-    Token tok = read_identifier(input_ptr);
-    skip_whitespace(input_ptr); 
-    if (**input_ptr == ':') {
-        // We are reading a label
-        labels_map_insert(&prog->labels, tok, program_nb_instructions(prog));
-
-        //TODO: an error should be reported if the line contains anything that is not a comment.
-        skip_line(input_ptr);
-        return;
-    }
-
-    InstructionLine inst; 
-    instruction_line_init(&inst);
-    inst.name = tok;
-    int arg_index = 0;
-    while (arg_index < MAX_INSTRUCTION_ARGS && !has_line_ended(input_ptr) && **input_ptr != ';')
-    {
-        inst.arguments[arg_index] = read_identifier(input_ptr);
-        arg_index++;
-    }
-    //TODO handle the case where arg_index = MAX_INSTRUCTION_ARGS
-    instruction_lines_vect_push(&prog->instructions, inst);
-    skip_line(input_ptr);
 }

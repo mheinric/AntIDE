@@ -52,48 +52,19 @@ instruction_equal(Instruction first, Instruction second);
 
 typedef struct {
     VectorInstruction instructions;
-} Program2;
+} Program;
 
 void 
-program2_init(Program2 *program);
+Program_init(Program *program);
 
 void 
-program2_move(Program2 *target, Program2 *source);
+Program_move(Program *target, Program *source);
 
 void
-program2_clear(Program2 *program);
+Program_clear(Program *program);
 
 uint64_t
-program2_size(Program2 *program);
+Program_size(Program *program);
 
 void
-program2_push_instruction(Program2 *program, Instruction instruction);
-
-/*
-
-
-typedef struct {
-    uint8_t index;
-} Register;
-
-typedef struct {
-    bool is_register; 
-    union {
-        int32_t int_value;
-        Register reg;
-    };
-} Argument;
-
-typedef struct {
-    InstructionType type; 
-    union {
-        struct { Argument dir; } move_args;
-        struct {} pickup_args;
-        struct {} drop_args;
-    };
-} Instruction;
-
-Instruction create_move(Argument arg);
-Instruction create_pickup();
-Instruction create_drop();
-*/
+Program_push_instruction(Program *program, Instruction instruction);
