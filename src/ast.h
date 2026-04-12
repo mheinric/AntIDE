@@ -11,6 +11,17 @@ typedef enum {
 
     //Arithmetic
     INST_SET,
+    INST_ADD,
+    INST_SUB,
+    INST_MOD,
+    INST_MUL,
+    INST_DIV,
+    INST_AND,
+    INST_OR,
+    INST_XOR,
+    INST_LSHIFT,
+    INST_RSHIFT,
+    INST_RANDOM,
 } InstructionType;
 
 typedef struct {

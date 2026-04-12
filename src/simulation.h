@@ -29,12 +29,24 @@ int32_t
 ant_get_arg_value(Ant *ant, Argument arg);
 
 typedef struct {
+    uint64_t state;
+} RandomGenerator;
+
+void
+random_generator_init(RandomGenerator *rand, uint64_t seed);
+
+int32_t 
+random_generator_generate(RandomGenerator *rand, int32_t max_bound);
+
+
+typedef struct {
     size_t step_number;
     Ant* ants;
     Cell* cells;
     Program program;
     size_t width; 
     size_t height;
+    RandomGenerator random_generator;
 } Simulation;
 
 void

@@ -1,15 +1,39 @@
 #include "parser.h"
 
-void parse_result_init(ParseResult *parse_result)
+void 
+parse_result_init(ParseResult *parse_result)
 {
     program_init(&parse_result->program);
     vector_parse_error_init(&parse_result->errors);
 }
 
-void parse_result_clear(ParseResult *parse_result)
+void 
+parse_result_clear(ParseResult *parse_result)
 {
     program_clear(&parse_result->program);
     vector_parse_error_clear(&parse_result->errors);
+}
+
+void 
+parse_result_print_errors(const ParseResult *parse_result)
+{
+    if (vector_parse_error_size(&parse_result->errors) == 0)
+    {
+        printf("No errors\n"); 
+        return;
+    }
+    for (const ParseError* it = parse_result->errors.begin; it != parse_result->errors.end; it++)
+    {
+        if (it->line > 0) 
+        {
+            printf("l.%zu: %s\n", it->line, it->message);
+        }
+        else
+        {
+            printf("%s\n", it->message);
+        }
+    }
+
 }
 
 typedef struct {
@@ -22,7 +46,7 @@ static const Token NULL_TOKEN = {
     .end = NULL
 };
 
-bool Token_is_null(const Token *token)
+bool token_is_null(const Token *token)
 {
     return token->begin == NULL && token->end == NULL;
 }
@@ -30,7 +54,7 @@ bool Token_is_null(const Token *token)
 bool token_matches_str(const Token *token, const char *str)
 {
     const size_t size = strlen(str);
-    if (Token_is_null(token) || size != (size_t) (token->end - token->begin))
+    if (token_is_null(token) || size != (size_t) (token->end - token->begin))
     {
         return false;
     }
@@ -114,27 +138,94 @@ const struct { const char* key; Argument value; } parser_builtin_constants[] = {
     { .key = "WEST",  .value = { .is_register = false, .value = 4 } },
 };
 
+bool parser_get_digit_value(char c, int32_t *digit_value, int32_t base)
+{
+    if (isdigit(c))
+    {
+        *digit_value = c - '0'; 
+        return *digit_value < base;
+    }
+    else 
+    {
+        *digit_value = tolower(c) - 'a' + 10;
+        return *digit_value > 0 && *digit_value < base;
+    }
+}
+
+bool 
+parser_read_integer(const Token* token, int32_t *target, VectorParseError *errors)
+{
+    //We are reading a number
+    const char* it = token->begin; 
+    bool is_negative = false;
+    if (*it == '-') {
+        is_negative = true; 
+        it++;
+        if (it == token->end)
+        {
+            ParseError err; 
+            err.line = 1; 
+            err.message = "Syntax error";
+            vector_parse_error_push(errors, err);
+            return false;
+        }
+    }
+
+    int32_t base = 10;
+    if (*it == '0' && it+1 != token->end && !isdigit(*(it + 1)))
+    {
+        if (tolower(*(it+1)) == 'b')
+        {
+            base = 2;
+        }
+        else if (tolower(*(it+1)) == 'x')
+        {
+            base = 16;
+        }
+        else
+        {
+            ParseError err; 
+            err.line = 1; 
+            err.message = "Syntax error";
+            vector_parse_error_push(errors, err);
+            return false;
+        }
+        it += 2;
+    }
+
+    *target = 0;
+    for (; it != token->end; it++)
+    {
+        int32_t digit_value = 0; 
+        if (!parser_get_digit_value(*it, &digit_value, base))
+        {
+            ParseError err; 
+            err.line = 1; 
+            err.message = "Invalid number format";
+            vector_parse_error_push(errors, err);
+            return false;
+        }
+        *target = base * (*target) + digit_value;
+    }
+    if (is_negative)
+    {
+        *target *= -1;
+    }
+    return true;
+}
+
 bool 
 parser_read_argument(const Token *token, Argument *target, VectorParseError *errors)
 {
     if (isdigit(token->begin[0]) || token->begin[0] == '-')
     {
-        //We are reading a number
-        bool is_negative = token->begin[0] == '-';
         int32_t value = 0;
-        for (const char* it = token->begin + is_negative; it != token->end; it++)
+        if (!parser_read_integer(token, &value, errors))
         {
-            if (!isdigit(*it))
-            {
-                ParseError err; 
-                err.line = 1; 
-                err.message = "Invalid number format";
-                vector_parse_error_push(errors, err);
-                return false;
-            }
-            value = 10 * value + (*it - '0');
+            return false;
         }
-        *target = argument_create_value(is_negative ? -value : value);
+
+        *target = argument_create_value(value);
         return true;
     }
     else
@@ -174,6 +265,27 @@ parser_read_register(const Token *token, uint8_t *target_reg, VectorParseError *
     }
     *target_reg = arg.register_index;
     return true;
+}
+
+void 
+parser_read_artihmetic_instruction(
+    InstructionType type, 
+    Token *tokens, 
+    unsigned nb_token, 
+    Program *program, 
+    VectorParseError *errors)
+{
+    if (!parser_verify_nb_arguments(3, nb_token, errors))
+    {
+        return;
+    }
+    Instruction inst;
+    inst.type = type;
+    if (parser_read_register(&tokens[1], &inst.arith_args.target_register, errors) && 
+        parser_read_argument(&tokens[2], &inst.arith_args.arg, errors))
+    {
+        program_push_instruction(program, inst);
+    }
 }
 
 void
@@ -218,17 +330,51 @@ read_instruction_from_tokens(
     }
     else if (token_matches_str(&tokens[0], "SET"))
     {
-        if (!parser_verify_nb_arguments(3, nb_token, errors))
-        {
-            return;
-        }
-        Instruction inst;
-        inst.type = INST_SET;
-        if (parser_read_register(&tokens[1], &inst.arith_args.target_register, errors) && 
-            parser_read_argument(&tokens[2], &inst.arith_args.arg, errors))
-        {
-            program_push_instruction(program, inst);
-        }
+        parser_read_artihmetic_instruction(INST_SET, tokens, nb_token, program, errors);
+    }
+    else if (token_matches_str(&tokens[0], "ADD"))
+    {
+        parser_read_artihmetic_instruction(INST_ADD, tokens, nb_token, program, errors);
+    }
+    else if (token_matches_str(&tokens[0], "SUB"))
+    {
+        parser_read_artihmetic_instruction(INST_SUB, tokens, nb_token, program, errors);
+    }
+    else if (token_matches_str(&tokens[0], "MOD"))
+    {
+        parser_read_artihmetic_instruction(INST_MOD, tokens, nb_token, program, errors);
+    }
+    else if (token_matches_str(&tokens[0], "MUL"))
+    {
+        parser_read_artihmetic_instruction(INST_MUL, tokens, nb_token, program, errors);
+    }
+    else if (token_matches_str(&tokens[0], "DIV"))
+    {
+        parser_read_artihmetic_instruction(INST_DIV, tokens, nb_token, program, errors);
+    }
+    else if (token_matches_str(&tokens[0], "AND"))
+    {
+        parser_read_artihmetic_instruction(INST_AND, tokens, nb_token, program, errors);
+    }
+    else if (token_matches_str(&tokens[0], "OR"))
+    {
+        parser_read_artihmetic_instruction(INST_OR, tokens, nb_token, program, errors);
+    }
+    else if (token_matches_str(&tokens[0], "XOR"))
+    {
+        parser_read_artihmetic_instruction(INST_XOR, tokens, nb_token, program, errors);
+    }
+    else if (token_matches_str(&tokens[0], "LSHIFT"))
+    {
+        parser_read_artihmetic_instruction(INST_LSHIFT, tokens, nb_token, program, errors);
+    }
+    else if (token_matches_str(&tokens[0], "RSHIFT"))
+    {
+        parser_read_artihmetic_instruction(INST_RSHIFT, tokens, nb_token, program, errors);
+    }
+    else if (token_matches_str(&tokens[0], "RANDOM"))
+    {
+        parser_read_artihmetic_instruction(INST_RANDOM, tokens, nb_token, program, errors);
     }
     else 
     {

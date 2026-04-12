@@ -49,7 +49,7 @@ VECTOR_FUN(clear) (VECTOR_TYPE *vect) {
 
 static inline 
 size_t 
-VECTOR_FUN(size) (VECTOR_TYPE *vect) {
+VECTOR_FUN(size) (const VECTOR_TYPE *vect) {
     return vect->end - vect->begin;
 }
 

@@ -25,6 +25,9 @@ parse_result_init(ParseResult *parse_result);
 void 
 parse_result_clear(ParseResult *parse_result);
 
+void 
+parse_result_print_errors(const ParseResult *parse_result);
+
 ParseResult
 parse_program_from_string(const char *content);
 

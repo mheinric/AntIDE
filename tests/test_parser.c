@@ -102,12 +102,37 @@ test_parse_single_instruction_arg1() {
 
 void
 test_parse_single_instruction_arithmetic() {
-    enum { NB_TESTS = 1 };
-    const char* test_instructions[NB_TESTS] = {
+    const char* test_instructions[] = {
         "SET r5 10",
+        "SET r5 r4",
+        "ADD r3 10",
+        "SUB r2 50",
+        "MOD r1 10",
+        "MUL r1 10",
+        "DIV r1 10",
+        "AND r1 10",
+        "OR  r1 0xFF",
+        "XOR  r1 0b1100",
+        "LSHIFT r0 2",
+        "RSHIFT r0 2",
+        "RANDOM r0 10",
     };
+    enum { NB_TESTS = sizeof(test_instructions) / sizeof(test_instructions[0]) };
+
     const Instruction expected_results[NB_TESTS] = {
         instruction_create_arithmetic(INST_SET, 5, argument_create_value(10)),
+        instruction_create_arithmetic(INST_SET, 5, argument_create_register(4)),
+        instruction_create_arithmetic(INST_ADD, 3, argument_create_value(10)),
+        instruction_create_arithmetic(INST_SUB, 2, argument_create_value(50)),
+        instruction_create_arithmetic(INST_MOD, 1, argument_create_value(10)),
+        instruction_create_arithmetic(INST_MUL, 1, argument_create_value(10)),
+        instruction_create_arithmetic(INST_DIV, 1, argument_create_value(10)),
+        instruction_create_arithmetic(INST_AND, 1, argument_create_value(10)),
+        instruction_create_arithmetic(INST_OR, 1, argument_create_value(0xFF)),
+        instruction_create_arithmetic(INST_XOR, 1, argument_create_value(0b1100)),
+        instruction_create_arithmetic(INST_LSHIFT, 0, argument_create_value(2)),
+        instruction_create_arithmetic(INST_RSHIFT, 0, argument_create_value(2)),
+        instruction_create_arithmetic(INST_RANDOM, 0, argument_create_value(10)),
     };
 
     for (int i =0; i < NB_TESTS; i++)

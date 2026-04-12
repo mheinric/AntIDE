@@ -63,6 +63,17 @@ bool instruction_equal(Instruction first, Instruction second)
         case INST_MOVE: 
             return argument_equal(first.move_args.dir, second.move_args.dir);
         case INST_SET: 
+        case INST_ADD:
+        case INST_SUB:
+        case INST_MOD:
+        case INST_MUL:
+        case INST_DIV:
+        case INST_AND:
+        case INST_OR:
+        case INST_XOR:
+        case INST_LSHIFT:
+        case INST_RSHIFT:
+        case INST_RANDOM:
             return first.arith_args.target_register == second.arith_args.target_register && 
                 argument_equal(first.arith_args.arg, second.arith_args.arg);
     }

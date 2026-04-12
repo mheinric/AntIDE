@@ -12,6 +12,19 @@ int32_t ant_get_arg_value(Ant *ant, Argument arg)
     }
 }
 
+void random_generator_init(RandomGenerator *rand, uint64_t seed)
+{
+    rand->state = seed;
+}
+
+int32_t random_generator_generate(RandomGenerator *rand, int32_t max_bound)
+{
+    // Values taken from https://en.wikipedia.org/wiki/Linear_congruential_generator from the MUSL implementation
+    rand->state = rand->state * 6364136223846793005 + 1;
+    // we return the upper bits
+    return (rand->state >> 32) % max_bound; //Note when max_bound is negative we get negative values.
+}
+
 void simulation_init(Simulation *sim, Program prog)
 {
     sim->step_number = 0;
@@ -30,6 +43,7 @@ void simulation_init(Simulation *sim, Program prog)
             sim->cells[sim->width * y + x].position.y = x;
         }
     }
+    random_generator_init(&sim->random_generator, 42);
 }
 
 void simulation_ant_run_step(Simulation *sim, Ant *ant)
@@ -75,6 +89,88 @@ void simulation_ant_run_step(Simulation *sim, Ant *ant)
             case INST_SET: 
             {
                 ant->registers[inst.arith_args.target_register] = ant_get_arg_value(ant, inst.arith_args.arg);
+                ant->pc += 1;
+                break;
+            }
+            case INST_ADD:
+            {
+                ant->registers[inst.arith_args.target_register] += ant_get_arg_value(ant, inst.arith_args.arg);
+                ant->pc += 1;
+                break;
+            }
+            case INST_SUB:
+            {
+                ant->registers[inst.arith_args.target_register] -= ant_get_arg_value(ant, inst.arith_args.arg);
+                ant->pc += 1;
+                break;
+            }
+            case INST_MOD:
+            {
+                int32_t mod_value = ant_get_arg_value(ant, inst.arith_args.arg);
+                if (mod_value != 0)
+                {
+                    ant->registers[inst.arith_args.target_register] %= mod_value;
+                    if (ant->registers[inst.arith_args.target_register] < 0)
+                    {
+                        ant->registers[inst.arith_args.target_register] += abs(mod_value);
+                    }
+                }
+                ant->pc += 1;
+                break;
+            }
+            case INST_MUL:
+            {
+                ant->registers[inst.arith_args.target_register] *= ant_get_arg_value(ant, inst.arith_args.arg);
+                ant->pc += 1;
+                break;
+            }
+            case INST_DIV:
+            {
+                int32_t divisor = ant_get_arg_value(ant, inst.arith_args.arg);
+                if (divisor != 0)
+                {
+                    ant->registers[inst.arith_args.target_register] /= divisor;
+                } 
+                ant->pc += 1;
+                break;
+            }
+            case INST_AND:
+            {
+                ant->registers[inst.arith_args.target_register] &= ant_get_arg_value(ant, inst.arith_args.arg);
+                ant->pc += 1;
+                break;
+            }
+            case INST_OR:
+            {
+                ant->registers[inst.arith_args.target_register] |= ant_get_arg_value(ant, inst.arith_args.arg);
+                ant->pc += 1;
+                break;
+            }
+            case INST_XOR:
+            {
+                ant->registers[inst.arith_args.target_register] ^= ant_get_arg_value(ant, inst.arith_args.arg);
+                ant->pc += 1;
+                break;
+            }
+            case INST_LSHIFT:
+            {
+                ant->registers[inst.arith_args.target_register] <<= ant_get_arg_value(ant, inst.arith_args.arg);
+                ant->pc += 1;
+                break;
+            }
+            case INST_RSHIFT:
+            {
+                ant->registers[inst.arith_args.target_register] >>= ant_get_arg_value(ant, inst.arith_args.arg);
+                ant->pc += 1;
+                break;
+            }
+            case INST_RANDOM:
+            {
+                int32_t max_bound = ant_get_arg_value(ant, inst.arith_args.arg);
+                if (max_bound != 0)
+                {
+                    ant->registers[inst.arith_args.target_register] = random_generator_generate(&sim->random_generator, max_bound);
+                }
                 ant->pc += 1;
                 break;
             }
