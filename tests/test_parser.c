@@ -91,6 +91,8 @@ test_parse_single_instructions() {
         "ID r0",
         "CARRYING r0",
         "MARK CH_BLUE 20",
+        "SNIFF CH_RED HERE r1",
+        "SMELL CH_YELLOW r2",
     };
 
     enum { NB_TESTS = sizeof(test_instructions) / sizeof(test_instructions[0]) };
@@ -100,12 +102,14 @@ test_parse_single_instructions() {
         instruction_create_move(argument_create_register(1)),
         instruction_create_move(argument_create_value(2)),
         instruction_create_move(argument_create_value(-165)),
-        instruction_create_move(argument_create_value(1)),
-        instruction_create_move(argument_create_value(0)),
+        instruction_create_move(argument_create_value(DIR_NORTH)),
+        instruction_create_move(argument_create_value(DIR_HERE)),
         instruction_create_jump(argument_create_register(0)),
         instruction_create_info(INST_ID, 0),
         instruction_create_info(INST_CARRY, 0),
         instruction_create_mark(argument_create_value(1), argument_create_value(20)),
+        instruction_create_sniff(argument_create_value(CH_RED), argument_create_value(0), 1),
+        instruction_create_smell(argument_create_value(CH_YELLOW), 2),
     };
 
     for (int i = 0; i < NB_TESTS; i++)

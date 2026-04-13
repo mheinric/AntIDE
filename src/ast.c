@@ -1,5 +1,15 @@
 #include "ast.h"
 
+bool direction_is_valid(int32_t dir_value)
+{
+    return dir_value >= 0 && dir_value < 5;
+}
+
+bool channel_is_valid(int32_t channel_value)
+{
+    return channel_value >= 0 && channel_value < 4;
+}
+
 Argument argument_create_register(uint8_t reg_index)
 {
     Argument result; 
@@ -95,6 +105,22 @@ Instruction instruction_create_mark(Argument channel, Argument amount)
     };
 }
 
+Instruction instruction_create_sniff(Argument channel, Argument direction, uint8_t target_reg)
+{
+    return (Instruction){
+        .type = INST_SNIFF,
+        .sniff_args = { .channel = channel, .direction = direction, .target_reg = target_reg }
+    };
+}
+
+Instruction instruction_create_smell(Argument channel, uint8_t target_reg)
+{
+    return (Instruction) {
+        .type = INST_SMELL, 
+        .smell_args = { .channel = channel, .target_reg = target_reg }
+    };
+}
+
 bool instruction_equal(Instruction first, Instruction second)
 {
     if (first.type != second.type)
@@ -140,6 +166,13 @@ bool instruction_equal(Instruction first, Instruction second)
         case INST_MARK: 
             return argument_equal(first.mark_args.amount, second.mark_args.amount) &&
                 argument_equal(first.mark_args.channel, second.mark_args.channel);
+        case INST_SNIFF: 
+            return first.sniff_args.target_reg == second.sniff_args.target_reg &&
+                argument_equal(first.sniff_args.channel, second.sniff_args.channel) &&
+                argument_equal(first.sniff_args.direction, second.sniff_args.direction);
+        case INST_SMELL: 
+            return first.smell_args.target_reg == second.smell_args.target_reg &&
+                argument_equal(first.smell_args.channel, second.smell_args.channel);
     }
     return false;
 }

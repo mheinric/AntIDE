@@ -160,15 +160,15 @@ const struct { const char* key; Argument value; } parser_builtin_constants[] = {
     { .key = "r5",        .value = { .is_register = true, .register_index = 5 } },
     { .key = "r6",        .value = { .is_register = true, .register_index = 6 } },
     { .key = "r7",        .value = { .is_register = true, .register_index = 7 } },
-    { .key = "HERE",      .value = { .is_register = false, .value = 0 } },
-    { .key = "NORTH",     .value = { .is_register = false, .value = 1 } },
-    { .key = "EAST",      .value = { .is_register = false, .value = 2 } },
-    { .key = "SOUTH",     .value = { .is_register = false, .value = 3 } },
-    { .key = "WEST",      .value = { .is_register = false, .value = 4 } },
-    { .key = "CH_RED",    .value = { .is_register = false, .value = 0 } },
-    { .key = "CH_BLUE",   .value = { .is_register = false, .value = 1 } },
-    { .key = "CH_GREEN",  .value = { .is_register = false, .value = 2 } },
-    { .key = "CH_YELLOW", .value = { .is_register = false, .value = 3 } },
+    { .key = "HERE",      .value = { .is_register = false, .value = DIR_HERE } },
+    { .key = "NORTH",     .value = { .is_register = false, .value = DIR_NORTH } },
+    { .key = "EAST",      .value = { .is_register = false, .value = DIR_EAST } },
+    { .key = "SOUTH",     .value = { .is_register = false, .value = DIR_SOUTH } },
+    { .key = "WEST",      .value = { .is_register = false, .value = DIR_WEST } },
+    { .key = "CH_RED",    .value = { .is_register = false, .value = CH_RED } },
+    { .key = "CH_BLUE",   .value = { .is_register = false, .value = CH_BLUE } },
+    { .key = "CH_GREEN",  .value = { .is_register = false, .value = CH_GREEN } },
+    { .key = "CH_YELLOW", .value = { .is_register = false, .value = CH_YELLOW } },
 };
 
 void 
@@ -599,6 +599,37 @@ read_instruction_from_tokens(
             return;
         }
         program_push_instruction(&parser->parse_result.program, instruction_create_mark(channel, amount));
+    }
+    else if (token_matches_str(&tokens[0], "SNIFF"))
+    {
+        if (!parser_verify_nb_arguments(parser, 4, nb_token))
+        {
+            return;
+        } 
+        Argument channel, direction;
+        uint8_t target_register; 
+        if (!parser_read_argument(parser, &tokens[1], &channel) ||
+            !parser_read_argument(parser, &tokens[2], &direction) || 
+            !parser_read_register(parser, &tokens[3], &target_register))
+        {
+            return;
+        }
+        program_push_instruction(&parser->parse_result.program, instruction_create_sniff(channel, direction, target_register));
+    }
+    else if (token_matches_str(&tokens[0], "SMELL"))
+    {
+        if (!parser_verify_nb_arguments(parser, 3, nb_token))
+        {
+            return;
+        } 
+        Argument channel;
+        uint8_t target_register; 
+        if (!parser_read_argument(parser, &tokens[1], &channel) ||
+            !parser_read_register(parser, &tokens[2], &target_register))
+        {
+            return;
+        }
+        program_push_instruction(&parser->parse_result.program, instruction_create_smell(channel, target_register));
     }
     else 
     {

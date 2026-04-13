@@ -304,13 +304,35 @@ test_simulation_mark(void)
     const Cell* cell= simulation_get_cell(&sim, pos);
     simulation_run_step(&sim);
     TEST_ASSERT_EQUAL(2, sim.ants[0].pc);
-    TEST_ASSERT_EQUAL_UINT8(100, cell->pheromones[0]);
+    TEST_ASSERT_EQUAL_UINT8(100, cell->pheromones[CH_RED]);
     simulation_run_step(&sim);
     TEST_ASSERT_EQUAL(2, sim.ants[0].pc);
-    TEST_ASSERT_EQUAL_UINT8(199, cell->pheromones[0]); // The -1 comes from the decay at each step
+    TEST_ASSERT_EQUAL_UINT8(199, cell->pheromones[CH_RED]); // The -1 comes from the decay at each step
     simulation_run_step(&sim);
     TEST_ASSERT_EQUAL(2, sim.ants[0].pc);
-    TEST_ASSERT_EQUAL_UINT8(255, cell->pheromones[0]);
+    TEST_ASSERT_EQUAL_UINT8(255, cell->pheromones[CH_RED]);
+}
+
+void 
+test_simulation_sniff_smell(void)
+{
+    const char* program = 
+        "SNIFF CH_RED NORTH r0\n"
+        "SMELL CH_RED r2\n"
+        "MOVE NORTH\n"
+        "SNIFF CH_RED HERE r1\n"
+    ;
+    Simulation sim = create_test_sim(program);
+    Position pos = sim.ants[CH_RED].position;
+    Cell* north_cell = simulation_get_neighbor_cell(&sim, pos, DIR_NORTH);
+    north_cell->pheromones[CH_RED] = 200;
+    Cell* east_cell = simulation_get_neighbor_cell(&sim, pos, DIR_EAST);
+    east_cell->pheromones[CH_RED] = 220;
+    simulation_run_step(&sim);
+    simulation_run_step(&sim);
+    TEST_ASSERT_EQUAL_UINT32(199, sim.ants[0].registers[0]);
+    TEST_ASSERT_EQUAL_UINT32(198, sim.ants[0].registers[1]);
+    TEST_ASSERT_EQUAL_UINT32(DIR_EAST, sim.ants[0].registers[2]);
 }
 
 int 
@@ -328,5 +350,6 @@ run_all_simulation_tests(void)
     RUN_TEST(test_simulation_id);
     RUN_TEST(test_simulation_carrying);
     RUN_TEST(test_simulation_mark);
+    RUN_TEST(test_simulation_sniff_smell);
     return UNITY_END();
 }

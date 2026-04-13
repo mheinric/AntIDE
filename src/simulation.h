@@ -72,3 +72,6 @@ simulation_run_step(Simulation *sim);
 
 Cell* 
 simulation_get_cell(Simulation* sim, Position pos);
+
+Cell* 
+simulation_get_neighbor_cell(Simulation* sim, Position pos, Direction dir);

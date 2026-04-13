@@ -264,6 +264,58 @@ void simulation_ant_run_single_instruction(Simulation *sim, Ant *ant, Instructio
             }
             break;
         }
+        case INST_SNIFF:
+        {
+            int32_t channel = ant_get_arg_value(ant, inst.sniff_args.channel);
+            int32_t direction = ant_get_arg_value(ant, inst.sniff_args.direction);
+            if (channel >= 0 && channel < 4 && direction_is_valid(direction))
+            {
+                Cell* cell = simulation_get_neighbor_cell(sim, ant->position, (Direction) direction);
+                ant->registers[inst.sniff_args.target_reg] = cell->pheromones[channel];
+            }
+            break;
+        }
+        case INST_SMELL:
+        {
+            int32_t channel = ant_get_arg_value(ant, inst.smell_args.channel);
+            uint8_t target_register = inst.smell_args.target_reg;
+            if (channel < 0 || channel >= 4)
+            {
+                //Invalid channel, nothing to do
+                break;
+            }
+            int32_t found_directions[4]; 
+            uint8_t nb_found = 0;
+            uint8_t max_found = 0;
+            for (int dir = DIR_NORTH; dir <= DIR_WEST; dir++)
+            {
+                Cell* cell = simulation_get_neighbor_cell(sim, ant->position, (Direction) dir);
+                if (cell->pheromones[channel] > max_found)
+                {
+                    found_directions[0] = dir; 
+                    nb_found = 1;
+                    max_found = cell->pheromones[channel];
+                }
+                else if (cell->pheromones[channel] == max_found)
+                {
+                    found_directions[nb_found] = dir; 
+                    nb_found++;
+                }
+            }
+            if (nb_found == 0)
+            {
+                ant->registers[target_register] = 0;
+            }
+            else if (nb_found == 1)
+            {
+                ant->registers[target_register] = found_directions[0];
+            }
+            else 
+            {
+                ant->registers[target_register] = found_directions[random_generator_generate(&sim->random_generator, nb_found)];
+            }
+            break;
+        }
     }
     if (inst.type == INST_MOVE || inst.type == INST_PICKUP || inst.type == INST_DROP)
     {
@@ -286,7 +338,8 @@ simulation_ant_run_step(Simulation *sim, Ant *ant)
 }
 
 
-void simulation_run_step(Simulation *sim)
+void 
+simulation_run_step(Simulation *sim)
 {
     sim->step_number++;
     // Decay the pheromones
@@ -309,7 +362,23 @@ void simulation_run_step(Simulation *sim)
     }
 }
 
-Cell *simulation_get_cell(Simulation *sim, Position pos)
+Cell*
+simulation_get_cell(Simulation *sim, Position pos)
 {
     return &sim->cells[sim->width * pos.y + pos.x];
+}
+
+Cell*
+simulation_get_neighbor_cell(Simulation *sim, Position pos, Direction dir)
+{
+    switch(dir)
+    {
+        case DIR_HERE: break; 
+        case DIR_NORTH: pos.y += 1; break;
+        case DIR_EAST: pos.x += 1; break;
+        case DIR_SOUTH: pos.y -= 1; break;
+        case DIR_WEST: pos.x -= 1; break; 
+        case DIR_RANDOM: return simulation_get_neighbor_cell(sim, pos, (Direction) (1 + random_generator_generate(&sim->random_generator, 4)));
+    }
+    return simulation_get_cell(sim, pos);
 }

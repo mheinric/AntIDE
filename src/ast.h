@@ -2,6 +2,28 @@
 #include "utils.h"
 
 typedef enum {
+    DIR_HERE   = 0, 
+    DIR_NORTH  = 1,
+    DIR_EAST   = 2,
+    DIR_SOUTH  = 3,
+    DIR_WEST   = 4, 
+    DIR_RANDOM = 5,
+} Direction;
+
+bool
+direction_is_valid(int32_t dir_value);
+
+typedef enum {
+    CH_RED    = 0, 
+    CH_BLUE   = 1, 
+    CH_GREEN  = 2, 
+    CH_YELLOW = 3
+} Channel;
+
+bool
+channel_is_valid(int32_t channel_value);
+
+typedef enum {
     //Action instructions
     INST_PICKUP,
     INST_DROP,
@@ -33,6 +55,8 @@ typedef enum {
     //Probing the environment
     INST_ID,
     INST_CARRY,
+    INST_SNIFF,
+    INST_SMELL,
 } InstructionType;
 
 typedef struct {
@@ -64,6 +88,8 @@ typedef struct {
         struct { uint8_t return_register; Argument target; } call_arg;
         struct { uint8_t target_register; } info_arg;
         struct { Argument channel; Argument amount; } mark_args;
+        struct { Argument channel; Argument direction; uint8_t target_reg; } sniff_args;
+        struct { Argument channel; uint8_t target_reg; } smell_args;
     };
 } Instruction;
 
@@ -87,6 +113,12 @@ instruction_create_info(InstructionType type, uint8_t target_reg);
 
 Instruction
 instruction_create_mark(Argument channel, Argument amount);
+
+Instruction 
+instruction_create_sniff(Argument channel, Argument direction, uint8_t target_reg);
+
+Instruction
+instruction_create_smell(Argument channel, uint8_t target_reg);
 
 bool 
 instruction_equal(Instruction first, Instruction second);
