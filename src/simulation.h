@@ -23,6 +23,7 @@ typedef struct {
     int32_t registers[8];
     Position position;
     bool carrying_food;
+    uint8_t instruction_budget;
 } Ant;
 
 int32_t 
@@ -53,7 +54,7 @@ void
 simulation_init(Simulation *sim, Program prog);
 
 void
-simulation_run_single_step(Simulation *sim);
+simulation_run_step(Simulation *sim);
 
 Cell* 
 simulation_get_cell(Simulation* sim, Position pos);

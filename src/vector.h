@@ -69,21 +69,14 @@ VECTOR_FUN(push) (VECTOR_TYPE *vect, VECTOR_ITEM_TYPE item) {
     if (size >= vect->capacity) 
     {
         //Reallocation needed.
-        //Allocate new memory
-        const uint64_t new_capacity = (vect->capacity + 1) * 2;
-        VECTOR_ITEM_TYPE* new_content = calloc(new_capacity, sizeof(VECTOR_ITEM_TYPE));
-        //Copy data to the new memory
-        memcpy(new_content, vect->begin, vect->capacity * sizeof(VECTOR_ITEM_TYPE));
-        //Free old memory
-        if (vect->begin != NULL) {
-            free(vect->begin);
-        }
-        //Update struct
-        vect->capacity = new_capacity; 
-        vect->begin = new_content; 
+        vect->capacity = (vect->capacity + 1) * 2; 
+        vect->begin = realloc(vect->begin, vect->capacity * sizeof(VECTOR_ITEM_TYPE));
         vect->end = vect->begin + size;
     }
     *vect->end = item;
     vect->end++;
 }
 
+
+#undef VECTOR_ITEM_TYPE
+#undef VECTOR_ITEM_NAME

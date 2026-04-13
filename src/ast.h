@@ -8,6 +8,12 @@ typedef enum {
     INST_MOVE,
 
     //Jumps
+    INST_JMP,
+    INST_JEQ,
+    INST_JNE,
+    INST_JGT,
+    INST_JLT,
+    INST_CALL,
 
     //Arithmetic
     INST_SET,
@@ -48,6 +54,9 @@ typedef struct {
         struct {} no_args;
         struct { Argument dir; } move_args;
         struct { uint8_t target_register; Argument arg; } arith_args;
+        struct { Argument target; } jmp_arg;
+        struct { Argument cond_value1; Argument cond_value2; Argument target; } cond_jmp_arg;
+        struct { uint8_t return_register; Argument target; } call_arg;
     };
 } Instruction;
 
@@ -57,14 +66,21 @@ instruction_create_move(Argument dir);
 Instruction 
 instruction_create_arithmetic(InstructionType type, uint8_t target_reg, Argument arg);
 
+Instruction 
+instruction_create_jump(Argument arg);
+
+Instruction 
+instruction_create_conditional_jump(InstructionType type, Argument cond_value1, Argument cond_value2, Argument target);
+
+Instruction
+instruction_create_call(uint8_t return_register, Argument target);
+
 bool 
 instruction_equal(Instruction first, Instruction second);
 
 #define VECTOR_ITEM_TYPE Instruction 
 #define VECTOR_ITEM_NAME instruction
 #include "vector.h"
-#undef VECTOR_ITEM_TYPE
-#undef VECTOR_ITEM_NAME
 
 typedef struct {
     VectorInstruction instructions;

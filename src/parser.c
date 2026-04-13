@@ -7,7 +7,8 @@ parse_result_init(ParseResult *parse_result)
     vector_parse_error_init(&parse_result->errors);
 }
 
-void parse_result_init_move(ParseResult *dest, ParseResult *source)
+void 
+parse_result_init_move(ParseResult *dest, ParseResult *source)
 {
     program_init_move(&dest->program, &source->program);
     vector_parse_error_init_move(&dest->errors, &source->errors);
@@ -52,20 +53,45 @@ static const Token NULL_TOKEN = {
     .end = NULL
 };
 
-bool token_is_null(const Token *token)
+void 
+token_init(Token* token, const char* begin, const char* end)
+{
+    token->begin = begin; 
+    token->end = end;
+}
+
+/**
+ * Initialises the token from a null-terminated string.
+ */
+void 
+token_init_from_string(Token* token, const char* content)
+{
+    token->begin = content; 
+    token->end = token->begin + strlen(content);
+}
+
+bool 
+token_is_null(const Token *token)
 {
     return token->begin == NULL && token->end == NULL;
 }
 
-bool token_matches_str(const Token *token, const char *str)
+bool
+token_equal(const Token *first, const Token* second)
 {
-    const size_t size = strlen(str);
-    if (token_is_null(token) || size != (size_t) (token->end - token->begin))
+    if (token_is_null(first) != token_is_null(second))
     {
         return false;
     }
-    for (size_t i = 0; i < size; i++) {
-        if (token->begin[i] < 0 || tolower(token->begin[i]) != tolower(str[i]))
+    const size_t size_first = first->end - first->begin;
+    const size_t size_second = second->end - second->begin; 
+    if (size_first != size_second)
+    {
+        return false;
+    }
+    for (size_t i = 0; i < size_first; i++)
+    {
+        if (tolower(first->begin[i]) != tolower(second->begin[i]))
         {
             return false;
         }
@@ -73,12 +99,73 @@ bool token_matches_str(const Token *token, const char *str)
     return true;
 }
 
+bool 
+token_matches_str(const Token *token, const char *str)
+{
+    Token second; 
+    token_init_from_string(&second, str); 
+    return token_equal(token, &second);
+}
+
+typedef struct {
+    Token name;
+    Argument value; 
+} ConstantEntry;
+
+#define VECTOR_ITEM_TYPE ConstantEntry
+#define VECTOR_ITEM_NAME constant_entry
+#include "vector.h"
+
+enum { PARSER_MAX_TOKE_PER_LINE = 5 };
+
+typedef struct {
+    Token tokens[PARSER_MAX_TOKE_PER_LINE]; 
+    int nb_tokens;
+    size_t line_number;
+} TokenLine;
+
+void
+token_line_init(TokenLine* token_line, size_t line_number)
+{
+
+    for (int i = 0; i < PARSER_MAX_TOKE_PER_LINE; i++)
+    {
+        token_line->tokens[i] = NULL_TOKEN;
+    }
+    token_line->nb_tokens = 0; 
+    token_line->line_number = line_number;
+}
+
+#define VECTOR_ITEM_TYPE TokenLine
+#define VECTOR_ITEM_NAME token_line
+#include "vector.h"
+
 typedef struct {
     const char* content;
     const char* current_position;
     size_t current_line;
+    // Intermediate data structure for storing stuff between phase 1 and phase 2 of the parser
+    VectorConstantEntry constants;
+    VectorTokenLine token_lines; 
+    //The final result that this parser produces.
     ParseResult parse_result;
 } Parser;
+
+const struct { const char* key; Argument value; } parser_builtin_constants[] = {
+    { .key = "r0",    .value = { .is_register = true, .register_index = 0 } },
+    { .key = "r1",    .value = { .is_register = true, .register_index = 1 } },
+    { .key = "r2",    .value = { .is_register = true, .register_index = 2 } },
+    { .key = "r3",    .value = { .is_register = true, .register_index = 3 } },
+    { .key = "r4",    .value = { .is_register = true, .register_index = 4 } },
+    { .key = "r5",    .value = { .is_register = true, .register_index = 5 } },
+    { .key = "r6",    .value = { .is_register = true, .register_index = 6 } },
+    { .key = "r7",    .value = { .is_register = true, .register_index = 7 } },
+    { .key = "HERE",  .value = { .is_register = false, .value = 0 } },
+    { .key = "NORTH", .value = { .is_register = false, .value = 1 } },
+    { .key = "EAST",  .value = { .is_register = false, .value = 2 } },
+    { .key = "SOUTH", .value = { .is_register = false, .value = 3 } },
+    { .key = "WEST",  .value = { .is_register = false, .value = 4 } },
+};
 
 void 
 parser_init(Parser* parser, const char* content)
@@ -86,6 +173,16 @@ parser_init(Parser* parser, const char* content)
     parser->content = content; 
     parser->current_position = content; 
     parser->current_line = 1;
+    vector_constant_entry_init(&parser->constants);
+    vector_token_line_init(&parser->token_lines);
+    const int nb_builtin_constants = sizeof(parser_builtin_constants) / sizeof(parser_builtin_constants[0]); 
+    for (int i = 0; i < nb_builtin_constants; i++)
+    {
+        ConstantEntry entry; 
+        token_init_from_string(&entry.name, parser_builtin_constants[i].key);
+        entry.value = parser_builtin_constants[i].value;
+        vector_constant_entry_push(&parser->constants, entry);
+    }
     parse_result_init(&parser->parse_result);
 }
 
@@ -95,6 +192,8 @@ parser_cleanup(Parser* parser)
     parser->content = NULL; 
     parser->current_position = NULL; 
     parser->current_line = 0; 
+    vector_constant_entry_cleanup(&parser->constants);
+    vector_token_line_cleanup(&parser->token_lines);
     parse_result_cleanup(&parser->parse_result);
 }
 
@@ -237,23 +336,6 @@ parser_read_integer(Parser* parser, const Token* token, int32_t *target)
     return true;
 }
 
-
-const struct { const char* key; Argument value; } parser_builtin_constants[] = {
-    { .key = "r0",    .value = { .is_register = true, .register_index = 0 } },
-    { .key = "r1",    .value = { .is_register = true, .register_index = 1 } },
-    { .key = "r2",    .value = { .is_register = true, .register_index = 2 } },
-    { .key = "r3",    .value = { .is_register = true, .register_index = 3 } },
-    { .key = "r4",    .value = { .is_register = true, .register_index = 4 } },
-    { .key = "r5",    .value = { .is_register = true, .register_index = 5 } },
-    { .key = "r6",    .value = { .is_register = true, .register_index = 6 } },
-    { .key = "r7",    .value = { .is_register = true, .register_index = 7 } },
-    { .key = "HERE",  .value = { .is_register = false, .value = 0 } },
-    { .key = "NORTH", .value = { .is_register = false, .value = 1 } },
-    { .key = "EAST",  .value = { .is_register = false, .value = 2 } },
-    { .key = "SOUTH", .value = { .is_register = false, .value = 3 } },
-    { .key = "WEST",  .value = { .is_register = false, .value = 4 } },
-};
-
 bool 
 parser_read_argument(Parser* parser, const Token *token, Argument *target)
 {
@@ -270,12 +352,11 @@ parser_read_argument(Parser* parser, const Token *token, Argument *target)
     }
     else
     {
-        const size_t nb_constants = sizeof(parser_builtin_constants) / sizeof(parser_builtin_constants[0]);
-        for (size_t i = 0; i < nb_constants; i++)
+        for (const ConstantEntry* it = parser->constants.begin; it != parser->constants.end; it++)
         {
-            if (token_matches_str(token, parser_builtin_constants[i].key))
+            if (token_equal(token, &it->name))
             {
-                *target = parser_builtin_constants[i].value;
+                *target = it->value;
                 return true;
             }
         }
@@ -305,7 +386,7 @@ void
 parser_read_artihmetic_instruction(
     Parser *parser,
     InstructionType type, 
-    Token *tokens, 
+    const Token *tokens, 
     unsigned nb_token)
 {
     if (!parser_verify_nb_arguments(parser, 3, nb_token))
@@ -321,12 +402,35 @@ parser_read_artihmetic_instruction(
     }
 }
 
+void 
+parser_read_conditional_jump_instruction(
+    Parser *parser, 
+    InstructionType type, 
+    const Token *tokens, 
+    unsigned nb_token)
+{
+    if (!parser_verify_nb_arguments(parser, 4, nb_token))
+    {
+        return;
+    }
+    Argument value1, value2, target; 
+    if (!parser_read_argument(parser, &tokens[1], &value1) || 
+        !parser_read_argument(parser, &tokens[2], &value2) || 
+        !parser_read_argument(parser, &tokens[3], &target))
+    {
+        return;
+    }
+    program_push_instruction(&parser->parse_result.program, instruction_create_conditional_jump(type, value1, value2, target));
+}
+
 void
 read_instruction_from_tokens(
     Parser* parser,
-    Token* tokens, 
-    unsigned nb_token)
+    const TokenLine* token_line)
 {
+    const Token* tokens = token_line->tokens;
+    int nb_token = token_line->nb_tokens;
+    parser->current_line = token_line->line_number;
     if (token_matches_str(&tokens[0], "PICKUP")) 
     {
         if (!parser_verify_nb_arguments(parser, 1, nb_token))
@@ -408,6 +512,50 @@ read_instruction_from_tokens(
     {
         parser_read_artihmetic_instruction(parser, INST_RANDOM, tokens, nb_token);
     }
+    else if (token_matches_str(&tokens[0], "JMP"))
+    {
+        if (!parser_verify_nb_arguments(parser, 2, nb_token))
+        {
+            return;
+        }
+        Argument target; 
+        if (!parser_read_argument(parser, &tokens[1], &target))
+        {
+            return;
+        }
+        program_push_instruction(&parser->parse_result.program, instruction_create_jump(target));
+    }
+    else if (token_matches_str(&tokens[0], "JEQ"))
+    {
+        parser_read_conditional_jump_instruction(parser, INST_JEQ, tokens, nb_token);
+    }
+    else if (token_matches_str(&tokens[0], "JNE"))
+    {
+        parser_read_conditional_jump_instruction(parser, INST_JNE, tokens, nb_token);
+    }
+    else if (token_matches_str(&tokens[0], "JGT"))
+    {
+        parser_read_conditional_jump_instruction(parser, INST_JGT, tokens, nb_token);
+    }
+    else if (token_matches_str(&tokens[0], "JLT"))
+    {
+        parser_read_conditional_jump_instruction(parser, INST_JLT, tokens, nb_token);
+    }
+    else if (token_matches_str(&tokens[0], "CALL"))
+    {
+        if (!parser_verify_nb_arguments(parser, 3, nb_token))
+        {
+            return;
+        }
+        uint8_t return_register; 
+        Argument target; 
+        if (!parser_read_register(parser, &tokens[1], &return_register) ||
+            !parser_read_argument(parser, &tokens[2], &target))
+        {
+            return;
+        }
+        program_push_instruction(&parser->parse_result.program, instruction_create_call(return_register, target));
+    }
     else 
     {
         parser_push_error(parser, "Unknown instruction name");
@@ -415,31 +563,54 @@ read_instruction_from_tokens(
 }
 
 bool 
-parse_read_tokens_from_line(Parser *parser, unsigned buffer_size, Token *buffer, unsigned *nb_tokens)
+parser_read_tokens_from_line(Parser *parser)
 {
-    *nb_tokens = 0;
-    //TODO: something to be done if the line contains only comments
-    while (!parser_has_line_ended(parser) && *nb_tokens < buffer_size)
-    {
-        buffer[*nb_tokens] = parser_read_token(parser);
-        *nb_tokens+= 1;
+    TokenLine token_line;
+    token_line_init(&token_line, parser->current_line);
 
-        if (*parser->current_position != '\0' && *parser->current_position != ';' && !isspace(*parser->current_position))
+    while (!parser_has_line_ended(parser) && token_line.nb_tokens < PARSER_MAX_TOKE_PER_LINE)
+    {
+        token_line.tokens[token_line.nb_tokens] = parser_read_token(parser);
+        if (token_is_null(&token_line.tokens[token_line.nb_tokens]))
         {
             parser_push_error(parser, "Unexpected character");
-            //Skip the rest of this line
             parser_skip_line(parser);
-            return false;
+            return false; 
         }
+        token_line.nb_tokens++;
+
         parser_skip_whitespace(parser);
         if (*parser->current_position == ';')
         {
             //The rest of the line can be ignored.
             break;
         }
+        if (token_line.nb_tokens == 1 && *parser->current_position == ':')
+        {
+            //We are reading a label.
+            //TODO fail when redefining an existing constant.
+            parser_advance(parser); 
+            parser_skip_whitespace(parser); 
+            if (!parser_has_line_ended(parser) && *parser->current_position != ';')
+            {
+                parser_push_error(parser, "Syntax error, can't have a command on the same line as a label");
+                parser_skip_line(parser);
+                return false;
+            }
+            ConstantEntry entry; 
+            entry.name = token_line.tokens[0]; 
+            entry.value = argument_create_value(vector_token_line_size(&parser->token_lines));
+            vector_constant_entry_push(&parser->constants, entry);
+            token_line.nb_tokens = 0;
+            break;
+        }
     }
     //Skip the remaining of the line, which is either just the newline or comments.
     parser_skip_line(parser);
+    if (token_line.nb_tokens > 0)
+    {
+        vector_token_line_push(&parser->token_lines, token_line);
+    }
     return true;
 }
 
@@ -454,19 +625,11 @@ parse_program_from_string(const char *content)
 
     while (*parser.current_position != '\0')
     {
-        Token tokens[MAX_NB_TOKENS] = { NULL_TOKEN, NULL_TOKEN, NULL_TOKEN, NULL_TOKEN, NULL_TOKEN };
-        unsigned nb_tokens = 0;
-        if (!parse_read_tokens_from_line(&parser, MAX_NB_TOKENS, tokens, &nb_tokens))
-        {
-            //An error was encountered in the first pass of parsing this line, we skip it.
-            continue; 
-        }
-
-        //Second pass, convert what was read into instructions
-        if (nb_tokens > 0) 
-        {
-            read_instruction_from_tokens(&parser, tokens, nb_tokens);
-        }
+        parser_read_tokens_from_line(&parser);
+    }
+    for (const TokenLine* it = parser.token_lines.begin; it != parser.token_lines.end; it++)
+    {
+        read_instruction_from_tokens(&parser, it);
     }
 
     ParseResult result; 

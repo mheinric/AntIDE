@@ -1,7 +1,7 @@
-#include "unity/unity.h"
 #include "simulation.h"
 #include "parser.h"
 #include "ast.h"
+#include <unity/unity.h>
 
 void 
 test_simulation_init(void)
@@ -10,7 +10,7 @@ test_simulation_init(void)
     program_init(&prog);
     Simulation sim; 
     simulation_init(&sim, prog);
-    simulation_run_single_step(&sim);
+    simulation_run_step(&sim);
     TEST_ASSERT_EQUAL_UINT64(1, sim.step_number);
     TEST_ASSERT_EQUAL_UINT64(0, sim.ants[0].id);
     TEST_ASSERT_EQUAL_INT32(0, sim.ants[0].pc);
@@ -31,7 +31,7 @@ test_simulation_single_step_move(void)
     Simulation sim; 
     simulation_init(&sim, prog);
     Position start_pos = sim.ants[0].position;
-    simulation_run_single_step(&sim);
+    simulation_run_step(&sim);
     Position end_pos = sim.ants[0].position;
     TEST_ASSERT_EQUAL_INT32(1, sim.ants[0].pc);
     TEST_ASSERT_EQUAL_UINT64(start_pos.x, end_pos.x);
@@ -44,9 +44,9 @@ create_test_sim(const char* program)
     ParseResult parse_result = parse_program_from_string(program);
     if (vector_parse_error_size(&parse_result.errors) > 0)
     {
-        printf("Failed the program below:\n%s\n", program); 
+        printf("Failed to parse the program below:\n%s\n", program); 
         parse_result_print_errors(&parse_result);
-        TEST_ASSERT_TRUE(false);
+        TEST_FAIL();
     }
     vector_parse_error_cleanup(&parse_result.errors);
     Simulation sim; 
@@ -64,10 +64,10 @@ test_simulation_pickup_drop(void)
     Position pos = sim.ants[0].position;
     Cell* cell = simulation_get_cell(&sim, pos);
     cell->type = CELL_TYPE_FOOD;
-    simulation_run_single_step(&sim); 
+    simulation_run_step(&sim); 
     CellType cell_type_step1 = cell->type;
     bool carrying_step1 = sim.ants[0].carrying_food; 
-    simulation_run_single_step(&sim); 
+    simulation_run_step(&sim); 
     CellType cell_type_step2 = cell->type;
     bool carrying_step2 = sim.ants[0].carrying_food;
 
@@ -185,7 +185,7 @@ test_simulation_arithmetic(void)
         {
             sim.ants[0].registers[reg_index] = init_register_values[reg_index];
         }
-        simulation_run_single_step(&sim);
+        simulation_run_step(&sim);
         for (int reg_index = 0; reg_index < 8; reg_index++)
         {
             if (sim.ants[0].registers[reg_index] != expected_register_values[reg_index])
@@ -206,7 +206,7 @@ test_simulation_random_instruction(void)
     random_generator_init(&r, 42); 
     int32_t rand_value = random_generator_generate(&r, 10);
     Simulation sim = create_test_sim("RANDOM r0 10");
-    simulation_run_single_step(&sim);
+    simulation_run_step(&sim);
     TEST_ASSERT_EQUAL_INT32(rand_value, sim.ants[0].registers[0]);
 }
 
@@ -222,10 +222,41 @@ test_simulation_loop(void)
     Simulation sim = create_test_sim(program);
     for (int i = 0; i < 10; i++)
     {
-        simulation_run_single_step(&sim);
+        simulation_run_step(&sim);
         TEST_ASSERT_EQUAL(2, sim.ants[0].pc);
         TEST_ASSERT_EQUAL(i + 1, sim.ants[0].registers[0]);
     }
+}
+
+void
+test_simulation_conditional_jumps(void)
+{
+    const char* program = 
+        "main:\n"
+        "ADD r0 1\n"
+        "JEQ r0 10 end\n"
+        "JMP main\n"
+        "end:\n"
+    ;
+    Simulation sim = create_test_sim(program);
+    simulation_run_step(&sim);
+    TEST_ASSERT_EQUAL(3, sim.ants[0].pc);
+    TEST_ASSERT_EQUAL(10, sim.ants[0].registers[0]);
+}
+
+void
+test_simulation_call(void)
+{
+    const char* program = 
+        "main:\n"
+        "CALL r0 end\n"
+        "JMP main\n"
+        "end:\n"
+    ;
+    Simulation sim = create_test_sim(program);
+    simulation_run_step(&sim);
+    TEST_ASSERT_EQUAL(2, sim.ants[0].pc);
+    TEST_ASSERT_EQUAL(1, sim.ants[0].registers[0]);
 }
 
 int 
@@ -238,5 +269,7 @@ run_all_simulation_tests(void)
     RUN_TEST(test_simulation_arithmetic);
     RUN_TEST(test_simulation_random_instruction);
     RUN_TEST(test_simulation_loop);
+    RUN_TEST(test_simulation_conditional_jumps);
+    RUN_TEST(test_simulation_call);
     return UNITY_END();
 }

@@ -1,5 +1,13 @@
-#include "unity/unity.h"
 #include "parser.h"
+#include <unity/unity.h>
+
+void TEST_ASSERT_NO_ERRORS(ParseResult *parse_result) {
+    if (vector_parse_error_size(&parse_result->errors) > 0) 
+    {
+        parse_result_print_errors(parse_result);
+        TEST_FAIL_MESSAGE("Parse result contains errors");
+    }
+}
 
 void 
 test_instruction_equality() 
@@ -18,7 +26,7 @@ test_instruction_equality()
 void 
 test_parse_read_empty_file() {
     ParseResult result = parse_program_from_file("tests/sample_programs/empty_file.asm");
-    TEST_ASSERT_EQUAL_UINT64(0, vector_parse_error_size(&result.errors));
+    TEST_ASSERT_NO_ERRORS(&result);
     TEST_ASSERT_EQUAL_UINT64(0, program_size(&result.program));
     parse_result_cleanup(&result);    
 }
@@ -34,7 +42,7 @@ test_parse_read_inexistant_file() {
 void 
 test_parse_empty_program() {
     ParseResult result = parse_program_from_string("");
-    TEST_ASSERT_EQUAL_UINT64(0, vector_parse_error_size(&result.errors));
+    TEST_ASSERT_NO_ERRORS(&result);
     TEST_ASSERT_EQUAL_UINT64(0, program_size(&result.program));
     parse_result_cleanup(&result);
 }
@@ -61,7 +69,7 @@ test_parse_single_instruction_no_arg() {
     for (int i = 0; i < NB_ITEMS; i++)
     {
         ParseResult result = parse_program_from_string(inst_str[i]);
-        TEST_ASSERT_EQUAL_UINT64_MESSAGE(0, vector_parse_error_size(&result.errors), inst_str[i]);
+        TEST_ASSERT_NO_ERRORS(&result);
         TEST_ASSERT_EQUAL_UINT64_MESSAGE(1, program_size(&result.program), inst_str[i]);
         TEST_ASSERT_EQUAL_MESSAGE(inst_type[i], result.program.instructions.begin->type, inst_str[i]);
         parse_result_cleanup(&result);
@@ -71,15 +79,18 @@ test_parse_single_instruction_no_arg() {
 void 
 test_parse_single_instruction_arg1() {
     //Test instructions with a single argument.
-    enum { NB_TESTS = 6 };
-    const char* test_instructions[NB_TESTS] = {
+
+    const char* test_instructions[] = {
         "MOVE r0", 
         "MOVE r1",
         "MOVE 2",
         "MOVE -165",
         "MOVE NORTH",
         "MOVE HERE",
+        "JMP r0",
     };
+
+    enum { NB_TESTS = sizeof(test_instructions) / sizeof(test_instructions[0]) };
 
     const Instruction expected_results[NB_TESTS] = {
         instruction_create_move(argument_create_register(0)),
@@ -88,12 +99,13 @@ test_parse_single_instruction_arg1() {
         instruction_create_move(argument_create_value(-165)),
         instruction_create_move(argument_create_value(1)),
         instruction_create_move(argument_create_value(0)),
+        instruction_create_jump(argument_create_register(0)),
     };
 
     for (int i = 0; i < NB_TESTS; i++)
     {
         ParseResult result = parse_program_from_string(test_instructions[i]);
-        TEST_ASSERT_EQUAL_UINT64_MESSAGE(0, vector_parse_error_size(&result.errors), test_instructions[i]);
+        TEST_ASSERT_NO_ERRORS(&result);
         TEST_ASSERT_EQUAL_UINT64_MESSAGE(1, program_size(&result.program), test_instructions[i]);
         TEST_ASSERT_TRUE_MESSAGE(instruction_equal(expected_results[i], result.program.instructions.begin[0]), test_instructions[i]);
         parse_result_cleanup(&result);
@@ -138,7 +150,7 @@ test_parse_single_instruction_arithmetic() {
     for (int i =0; i < NB_TESTS; i++)
     {
         ParseResult result = parse_program_from_string(test_instructions[i]);
-        TEST_ASSERT_EQUAL_UINT64_MESSAGE(0, vector_parse_error_size(&result.errors), test_instructions[i]);
+        TEST_ASSERT_NO_ERRORS(&result);
         TEST_ASSERT_EQUAL_UINT64_MESSAGE(1, program_size(&result.program), test_instructions[i]);
         TEST_ASSERT_TRUE_MESSAGE(instruction_equal(expected_results[i], result.program.instructions.begin[0]), test_instructions[i]);
         parse_result_cleanup(&result);
@@ -173,12 +185,58 @@ test_parse_invalid_instruction() {
 void 
 test_parse_multiple_instructions() {
     const char* program = 
+        "main:\n"
         "MOVE r0\n"
         "PICKUP";
     ParseResult result = parse_program_from_string(program);
-    TEST_ASSERT_EQUAL_UINT64(0, vector_parse_error_size(&result.errors));
+    TEST_ASSERT_NO_ERRORS(&result);
     TEST_ASSERT_EQUAL_UINT64(2, program_size(&result.program));
     parse_result_cleanup(&result);
+}
+
+void 
+test_parse_conditional_jumps() {
+    char program[] = 
+        "main:\n"
+        "ADD r0 1\n"
+        "XXX r0 10 end\n"
+        "end:\n"
+        "PICKUP";
+    struct { InstructionType inst_type; const char inst_name[3]; } test_entries[] = {
+        { .inst_type = INST_JEQ, .inst_name = "JEQ" },
+        { .inst_type = INST_JNE, .inst_name = "JNE" },
+        { .inst_type = INST_JGT, .inst_name = "JGT" },
+        { .inst_type = INST_JLT, .inst_name = "JLT" },
+    };
+    enum { NB_TESTS = sizeof(test_entries) / sizeof(test_entries[0]) };
+    for (int i = 0; i < NB_TESTS; i++)
+    {
+        for (int k = 0; k < 3; k++)
+        {
+            program[15 + k] = test_entries[i].inst_name[k];
+        }
+
+        ParseResult result = parse_program_from_string(program);
+        TEST_ASSERT_NO_ERRORS(&result);
+        TEST_ASSERT_EQUAL_UINT64(3, program_size(&result.program));
+        TEST_ASSERT_TRUE(instruction_equal(
+            result.program.instructions.begin[1],
+            instruction_create_conditional_jump(test_entries[i].inst_type, argument_create_register(0), argument_create_value(10), argument_create_value(2))
+        ));
+        parse_result_cleanup(&result);
+    }
+}
+
+void
+test_parse_call(void)
+{
+    ParseResult result = parse_program_from_string("CALL r0 r1");
+    TEST_ASSERT_NO_ERRORS(&result);
+    TEST_ASSERT_EQUAL_UINT64(1, program_size(&result.program));
+    TEST_ASSERT_TRUE(instruction_equal(
+        instruction_create_call(0, argument_create_register(1)),
+        result.program.instructions.begin[0]
+    ));
 }
 
 int 
@@ -193,5 +251,6 @@ run_all_parser_tests(void) {
     RUN_TEST(test_parse_single_instruction_arithmetic);
     RUN_TEST(test_parse_invalid_instruction);
     RUN_TEST(test_parse_multiple_instructions);
+    RUN_TEST(test_parse_conditional_jumps);
     return UNITY_END();
 }

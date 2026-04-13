@@ -34,19 +34,49 @@ bool argument_equal(Argument first, Argument second)
 
 Instruction instruction_create_move(Argument dir)
 {
-    Instruction result; 
-    result.type = INST_MOVE; 
-    result.move_args.dir = dir;
-    return result;
+    return (Instruction) {
+        .type = INST_MOVE, 
+        .move_args = { .dir = dir }
+    };
 }
 
 Instruction instruction_create_arithmetic(InstructionType type, uint8_t target_reg, Argument arg)
 {
-    Instruction result; 
-    result.type = type; 
-    result.arith_args.target_register = target_reg; 
-    result.arith_args.arg = arg;
-    return result;
+    return (Instruction) {
+        .type = type, 
+        .arith_args = { .target_register = target_reg, .arg = arg} 
+    };
+}
+
+Instruction instruction_create_jump(Argument target)
+{
+    return (Instruction) {
+        .type = INST_JMP, 
+        .jmp_arg = { .target = target }
+    };
+}
+
+Instruction instruction_create_conditional_jump(InstructionType type, Argument cond_value1, Argument cond_value2, Argument target)
+{
+    return (Instruction) {
+        .type = type, 
+        .cond_jmp_arg = { 
+            .cond_value1 = cond_value1,
+            .cond_value2 = cond_value2,
+            .target = target 
+        }
+    };
+}
+
+Instruction instruction_create_call(uint8_t return_register, Argument target)
+{
+    return (Instruction) {
+        .type = INST_CALL, 
+        .call_arg = {
+            .return_register = return_register, 
+            .target = target
+        }
+    };
 }
 
 bool instruction_equal(Instruction first, Instruction second)
@@ -76,6 +106,18 @@ bool instruction_equal(Instruction first, Instruction second)
         case INST_RANDOM:
             return first.arith_args.target_register == second.arith_args.target_register && 
                 argument_equal(first.arith_args.arg, second.arith_args.arg);
+        case INST_JMP:
+            return argument_equal(first.jmp_arg.target, second.jmp_arg.target);
+        case INST_JEQ:
+        case INST_JNE:
+        case INST_JGT:
+        case INST_JLT:
+            return argument_equal(first.cond_jmp_arg.cond_value1, second.cond_jmp_arg.cond_value1) && 
+                argument_equal(first.cond_jmp_arg.cond_value2, second.cond_jmp_arg.cond_value2) &&
+                argument_equal(first.cond_jmp_arg.target, second.cond_jmp_arg.target);
+        case INST_CALL: 
+            return first.call_arg.return_register == second.call_arg.return_register && 
+                argument_equal(first.call_arg.target, second.call_arg.target);
     }
     return false;
 }
@@ -106,29 +148,3 @@ program_push_instruction(Program *program, Instruction instruction)
 {
     vector_instruction_push(&program->instructions, instruction);
 }
-
-/*
-Instruction create_move(Argument arg)
-{
-    Instruction result; 
-    result.type = INST_MOVE;
-    result.move_args.dir = arg;
-    return result;
-}
-
-Instruction create_pickup()
-{
-    Instruction result; 
-    result.type = INST_PICKUP;
-    result.pickup_args = {};
-    return result;
-}
-
-Instruction create_drop()
-{
-    Instruction result; 
-    result.type = INST_DROP;
-    result.pickup_args = {};
-    return result;
-}
-*/

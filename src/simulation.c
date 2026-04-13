@@ -46,142 +46,226 @@ void simulation_init(Simulation *sim, Program prog)
     random_generator_init(&sim->random_generator, 42);
 }
 
-void simulation_ant_run_step(Simulation *sim, Ant *ant)
+void simulation_ant_run_single_instruction(Simulation *sim, Ant *ant, Instruction inst)
 {
-    if (ant->pc >= 0 && (uint32_t) ant->pc < program_size(&sim->program))
+    switch(inst.type) 
+    {
+        case INST_MOVE: 
+        {
+            int32_t dir = ant_get_arg_value(ant, inst.move_args.dir);
+            ant->position.x += dir == 2 ? 1 : dir == 4 ? -1 : 0;
+            ant->position.y += dir == 1 ? 1 : dir == 3 ? -1 : 0;
+            ant->pc += 1;
+            break;
+        }
+        case INST_PICKUP: 
+        {
+            ant->pc += 1;
+            Cell* cell = simulation_get_cell(sim, ant->position);
+            if (ant->carrying_food || cell->type != CELL_TYPE_FOOD)
+            {
+                //Nothing to do
+                break;
+            }
+            cell->type = CELL_TYPE_EMPTY; 
+            ant->carrying_food = true;
+            break;
+        }
+        case INST_DROP:
+        {
+            ant->pc += 1;
+            if (!ant->carrying_food)
+            {
+                break;
+            }
+            Cell* cell = simulation_get_cell(sim, ant->position);
+            cell->type = CELL_TYPE_FOOD;
+            ant->carrying_food = false;
+            break;
+        }
+        case INST_SET: 
+        {
+            ant->registers[inst.arith_args.target_register] = ant_get_arg_value(ant, inst.arith_args.arg);
+            ant->pc += 1;
+            break;
+        }
+        case INST_ADD:
+        {
+            ant->registers[inst.arith_args.target_register] += ant_get_arg_value(ant, inst.arith_args.arg);
+            ant->pc += 1;
+            break;
+        }
+        case INST_SUB:
+        {
+            ant->registers[inst.arith_args.target_register] -= ant_get_arg_value(ant, inst.arith_args.arg);
+            ant->pc += 1;
+            break;
+        }
+        case INST_MOD:
+        {
+            int32_t mod_value = ant_get_arg_value(ant, inst.arith_args.arg);
+            if (mod_value != 0)
+            {
+                ant->registers[inst.arith_args.target_register] %= mod_value;
+                if (ant->registers[inst.arith_args.target_register] < 0)
+                {
+                    ant->registers[inst.arith_args.target_register] += abs(mod_value);
+                }
+            }
+            ant->pc += 1;
+            break;
+        }
+        case INST_MUL:
+        {
+            ant->registers[inst.arith_args.target_register] *= ant_get_arg_value(ant, inst.arith_args.arg);
+            ant->pc += 1;
+            break;
+        }
+        case INST_DIV:
+        {
+            int32_t divisor = ant_get_arg_value(ant, inst.arith_args.arg);
+            if (divisor != 0)
+            {
+                ant->registers[inst.arith_args.target_register] /= divisor;
+            } 
+            ant->pc += 1;
+            break;
+        }
+        case INST_AND:
+        {
+            ant->registers[inst.arith_args.target_register] &= ant_get_arg_value(ant, inst.arith_args.arg);
+            ant->pc += 1;
+            break;
+        }
+        case INST_OR:
+        {
+            ant->registers[inst.arith_args.target_register] |= ant_get_arg_value(ant, inst.arith_args.arg);
+            ant->pc += 1;
+            break;
+        }
+        case INST_XOR:
+        {
+            ant->registers[inst.arith_args.target_register] ^= ant_get_arg_value(ant, inst.arith_args.arg);
+            ant->pc += 1;
+            break;
+        }
+        case INST_LSHIFT:
+        {
+            ant->registers[inst.arith_args.target_register] <<= ant_get_arg_value(ant, inst.arith_args.arg);
+            ant->pc += 1;
+            break;
+        }
+        case INST_RSHIFT:
+        {
+            ant->registers[inst.arith_args.target_register] >>= ant_get_arg_value(ant, inst.arith_args.arg);
+            ant->pc += 1;
+            break;
+        }
+        case INST_RANDOM:
+        {
+            int32_t max_bound = ant_get_arg_value(ant, inst.arith_args.arg);
+            if (max_bound != 0)
+            {
+                ant->registers[inst.arith_args.target_register] = random_generator_generate(&sim->random_generator, max_bound);
+            }
+            ant->pc += 1;
+            break;
+        }
+        case INST_JMP: 
+        {
+            int32_t target = ant_get_arg_value(ant, inst.jmp_arg.target);
+            ant->pc = target;
+            break;
+        }
+        case INST_JEQ:
+        {
+            int32_t cond_value1 = ant_get_arg_value(ant, inst.cond_jmp_arg.cond_value1); 
+            int32_t cond_value2 = ant_get_arg_value(ant, inst.cond_jmp_arg.cond_value2);
+            if (cond_value1 == cond_value2)
+            {
+                ant->pc = ant_get_arg_value(ant, inst.cond_jmp_arg.target);
+            }
+            else
+            {
+                ant->pc += 1;
+            }
+            break;
+        }
+        case INST_JNE: 
+        {
+            int32_t cond_value1 = ant_get_arg_value(ant, inst.cond_jmp_arg.cond_value1); 
+            int32_t cond_value2 = ant_get_arg_value(ant, inst.cond_jmp_arg.cond_value2);
+            if (cond_value1 != cond_value2)
+            {
+                ant->pc = ant_get_arg_value(ant, inst.cond_jmp_arg.target);
+            }
+            else
+            {
+                ant->pc += 1;
+            }
+            break;
+        }
+        case INST_JGT: 
+        {
+            int32_t cond_value1 = ant_get_arg_value(ant, inst.cond_jmp_arg.cond_value1); 
+            int32_t cond_value2 = ant_get_arg_value(ant, inst.cond_jmp_arg.cond_value2);
+            if (cond_value1 > cond_value2)
+            {
+                ant->pc = ant_get_arg_value(ant, inst.cond_jmp_arg.target);
+            }
+            else
+            {
+                ant->pc += 1;
+            }
+            break;
+        }
+        case INST_JLT: 
+        {
+            int32_t cond_value1 = ant_get_arg_value(ant, inst.cond_jmp_arg.cond_value1); 
+            int32_t cond_value2 = ant_get_arg_value(ant, inst.cond_jmp_arg.cond_value2);
+            if (cond_value1 < cond_value2)
+            {
+                ant->pc = ant_get_arg_value(ant, inst.cond_jmp_arg.target);
+            }
+            else
+            {
+                ant->pc += 1;
+            }
+            break;
+        }
+        case INST_CALL: 
+        {
+            int32_t target_address = ant_get_arg_value(ant, inst.call_arg.target); 
+            ant->registers[inst.call_arg.return_register] = ant->pc + 1; 
+            ant->pc = target_address;
+            break;
+        }
+    }
+    if (inst.type == INST_MOVE || inst.type == INST_PICKUP || inst.type == INST_DROP)
+    {
+        ant->instruction_budget = 0;
+    }
+    else
+    {
+        ant->instruction_budget--;
+    }
+}
+
+void
+simulation_ant_run_step(Simulation *sim, Ant *ant)
+{
+    while (ant->instruction_budget > 0 && ant->pc >= 0 && (uint32_t) ant->pc < program_size(&sim->program))
     {
         Instruction inst = sim->program.instructions.begin[ant->pc];
-        switch(inst.type) 
-        {
-            case INST_MOVE: 
-            {
-                int32_t dir = ant_get_arg_value(ant, inst.move_args.dir);
-                ant->position.x += dir == 2 ? 1 : dir == 4 ? -1 : 0;
-                ant->position.y += dir == 1 ? 1 : dir == 3 ? -1 : 0;
-                ant->pc += 1;
-                break;
-            }
-            case INST_PICKUP: 
-            {
-                Cell* cell = simulation_get_cell(sim, ant->position);
-                if (ant->carrying_food || cell->type != CELL_TYPE_FOOD)
-                {
-                    //Nothing to do
-                    break;
-                }
-                cell->type = CELL_TYPE_EMPTY; 
-                ant->carrying_food = true;
-                ant->pc += 1;
-                break;
-            }
-            case INST_DROP:
-            {
-                if (!ant->carrying_food)
-                {
-                    break;
-                }
-                Cell* cell = simulation_get_cell(sim, ant->position);
-                cell->type = CELL_TYPE_FOOD;
-                ant->carrying_food = false;
-                ant->pc += 1;
-                break;
-            }
-            case INST_SET: 
-            {
-                ant->registers[inst.arith_args.target_register] = ant_get_arg_value(ant, inst.arith_args.arg);
-                ant->pc += 1;
-                break;
-            }
-            case INST_ADD:
-            {
-                ant->registers[inst.arith_args.target_register] += ant_get_arg_value(ant, inst.arith_args.arg);
-                ant->pc += 1;
-                break;
-            }
-            case INST_SUB:
-            {
-                ant->registers[inst.arith_args.target_register] -= ant_get_arg_value(ant, inst.arith_args.arg);
-                ant->pc += 1;
-                break;
-            }
-            case INST_MOD:
-            {
-                int32_t mod_value = ant_get_arg_value(ant, inst.arith_args.arg);
-                if (mod_value != 0)
-                {
-                    ant->registers[inst.arith_args.target_register] %= mod_value;
-                    if (ant->registers[inst.arith_args.target_register] < 0)
-                    {
-                        ant->registers[inst.arith_args.target_register] += abs(mod_value);
-                    }
-                }
-                ant->pc += 1;
-                break;
-            }
-            case INST_MUL:
-            {
-                ant->registers[inst.arith_args.target_register] *= ant_get_arg_value(ant, inst.arith_args.arg);
-                ant->pc += 1;
-                break;
-            }
-            case INST_DIV:
-            {
-                int32_t divisor = ant_get_arg_value(ant, inst.arith_args.arg);
-                if (divisor != 0)
-                {
-                    ant->registers[inst.arith_args.target_register] /= divisor;
-                } 
-                ant->pc += 1;
-                break;
-            }
-            case INST_AND:
-            {
-                ant->registers[inst.arith_args.target_register] &= ant_get_arg_value(ant, inst.arith_args.arg);
-                ant->pc += 1;
-                break;
-            }
-            case INST_OR:
-            {
-                ant->registers[inst.arith_args.target_register] |= ant_get_arg_value(ant, inst.arith_args.arg);
-                ant->pc += 1;
-                break;
-            }
-            case INST_XOR:
-            {
-                ant->registers[inst.arith_args.target_register] ^= ant_get_arg_value(ant, inst.arith_args.arg);
-                ant->pc += 1;
-                break;
-            }
-            case INST_LSHIFT:
-            {
-                ant->registers[inst.arith_args.target_register] <<= ant_get_arg_value(ant, inst.arith_args.arg);
-                ant->pc += 1;
-                break;
-            }
-            case INST_RSHIFT:
-            {
-                ant->registers[inst.arith_args.target_register] >>= ant_get_arg_value(ant, inst.arith_args.arg);
-                ant->pc += 1;
-                break;
-            }
-            case INST_RANDOM:
-            {
-                int32_t max_bound = ant_get_arg_value(ant, inst.arith_args.arg);
-                if (max_bound != 0)
-                {
-                    ant->registers[inst.arith_args.target_register] = random_generator_generate(&sim->random_generator, max_bound);
-                }
-                ant->pc += 1;
-                break;
-            }
-        }
+        simulation_ant_run_single_instruction(sim, ant, inst);
     }
 }
 
 
-void simulation_run_single_step(Simulation *sim)
+void simulation_run_step(Simulation *sim)
 {
     sim->step_number++;
+    sim->ants[0].instruction_budget = 64;
     simulation_ant_run_step(sim, sim->ants);
 }
 

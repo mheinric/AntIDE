@@ -10,8 +10,6 @@ typedef struct {
 #define VECTOR_ITEM_TYPE ParseError
 #define VECTOR_ITEM_NAME parse_error
 #include "vector.h"
-#undef VECTOR_ITEM_TYPE
-#undef VECTOR_ITEM_NAME
 
 
 typedef struct {
