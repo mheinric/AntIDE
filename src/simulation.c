@@ -73,6 +73,7 @@ void simulation_init(Simulation *sim, SimulationSettings settings, Program prog)
 
 void simulation_ant_run_single_instruction(Simulation *sim, Ant *ant, Instruction inst)
 {
+    ant->pc += 1;
     switch(inst.type) 
     {
         case INST_MOVE: 
@@ -80,12 +81,10 @@ void simulation_ant_run_single_instruction(Simulation *sim, Ant *ant, Instructio
             int32_t dir = ant_get_arg_value(ant, inst.move_args.dir);
             ant->position.x += dir == 2 ? 1 : dir == 4 ? -1 : 0;
             ant->position.y += dir == 1 ? 1 : dir == 3 ? -1 : 0;
-            ant->pc += 1;
             break;
         }
         case INST_PICKUP: 
         {
-            ant->pc += 1;
             Cell* cell = simulation_get_cell(sim, ant->position);
             if (ant->carrying_food || cell->type != CELL_TYPE_FOOD)
             {
@@ -98,7 +97,6 @@ void simulation_ant_run_single_instruction(Simulation *sim, Ant *ant, Instructio
         }
         case INST_DROP:
         {
-            ant->pc += 1;
             if (!ant->carrying_food)
             {
                 break;
@@ -111,19 +109,16 @@ void simulation_ant_run_single_instruction(Simulation *sim, Ant *ant, Instructio
         case INST_SET: 
         {
             ant->registers[inst.arith_args.target_register] = ant_get_arg_value(ant, inst.arith_args.arg);
-            ant->pc += 1;
             break;
         }
         case INST_ADD:
         {
             ant->registers[inst.arith_args.target_register] += ant_get_arg_value(ant, inst.arith_args.arg);
-            ant->pc += 1;
             break;
         }
         case INST_SUB:
         {
             ant->registers[inst.arith_args.target_register] -= ant_get_arg_value(ant, inst.arith_args.arg);
-            ant->pc += 1;
             break;
         }
         case INST_MOD:
@@ -137,13 +132,11 @@ void simulation_ant_run_single_instruction(Simulation *sim, Ant *ant, Instructio
                     ant->registers[inst.arith_args.target_register] += abs(mod_value);
                 }
             }
-            ant->pc += 1;
             break;
         }
         case INST_MUL:
         {
             ant->registers[inst.arith_args.target_register] *= ant_get_arg_value(ant, inst.arith_args.arg);
-            ant->pc += 1;
             break;
         }
         case INST_DIV:
@@ -153,37 +146,31 @@ void simulation_ant_run_single_instruction(Simulation *sim, Ant *ant, Instructio
             {
                 ant->registers[inst.arith_args.target_register] /= divisor;
             } 
-            ant->pc += 1;
             break;
         }
         case INST_AND:
         {
             ant->registers[inst.arith_args.target_register] &= ant_get_arg_value(ant, inst.arith_args.arg);
-            ant->pc += 1;
             break;
         }
         case INST_OR:
         {
             ant->registers[inst.arith_args.target_register] |= ant_get_arg_value(ant, inst.arith_args.arg);
-            ant->pc += 1;
             break;
         }
         case INST_XOR:
         {
             ant->registers[inst.arith_args.target_register] ^= ant_get_arg_value(ant, inst.arith_args.arg);
-            ant->pc += 1;
             break;
         }
         case INST_LSHIFT:
         {
             ant->registers[inst.arith_args.target_register] <<= ant_get_arg_value(ant, inst.arith_args.arg);
-            ant->pc += 1;
             break;
         }
         case INST_RSHIFT:
         {
             ant->registers[inst.arith_args.target_register] >>= ant_get_arg_value(ant, inst.arith_args.arg);
-            ant->pc += 1;
             break;
         }
         case INST_RANDOM:
@@ -193,7 +180,6 @@ void simulation_ant_run_single_instruction(Simulation *sim, Ant *ant, Instructio
             {
                 ant->registers[inst.arith_args.target_register] = random_generator_generate(&sim->random_generator, max_bound);
             }
-            ant->pc += 1;
             break;
         }
         case INST_JMP: 
@@ -210,10 +196,6 @@ void simulation_ant_run_single_instruction(Simulation *sim, Ant *ant, Instructio
             {
                 ant->pc = ant_get_arg_value(ant, inst.cond_jmp_arg.target);
             }
-            else
-            {
-                ant->pc += 1;
-            }
             break;
         }
         case INST_JNE: 
@@ -223,10 +205,6 @@ void simulation_ant_run_single_instruction(Simulation *sim, Ant *ant, Instructio
             if (cond_value1 != cond_value2)
             {
                 ant->pc = ant_get_arg_value(ant, inst.cond_jmp_arg.target);
-            }
-            else
-            {
-                ant->pc += 1;
             }
             break;
         }
@@ -238,10 +216,6 @@ void simulation_ant_run_single_instruction(Simulation *sim, Ant *ant, Instructio
             {
                 ant->pc = ant_get_arg_value(ant, inst.cond_jmp_arg.target);
             }
-            else
-            {
-                ant->pc += 1;
-            }
             break;
         }
         case INST_JLT: 
@@ -252,22 +226,43 @@ void simulation_ant_run_single_instruction(Simulation *sim, Ant *ant, Instructio
             {
                 ant->pc = ant_get_arg_value(ant, inst.cond_jmp_arg.target);
             }
-            else
-            {
-                ant->pc += 1;
-            }
             break;
         }
         case INST_CALL: 
         {
             int32_t target_address = ant_get_arg_value(ant, inst.call_arg.target); 
-            ant->registers[inst.call_arg.return_register] = ant->pc + 1; 
+            ant->registers[inst.call_arg.return_register] = ant->pc; // ant->pc already points to the next instruction at this point 
             ant->pc = target_address;
             break;
         }
         case INST_ID: 
         {
-            ant->registers[inst.id_arg.target_register] = ant->id;
+            ant->registers[inst.info_arg.target_register] = ant->id;
+            break;
+        }
+        case INST_CARRY: 
+        {
+            ant->registers[inst.info_arg.target_register] = ant->carrying_food;
+            break;
+        }
+        case INST_MARK:
+        {
+            int32_t channel = ant_get_arg_value(ant, inst.mark_args.channel); 
+            int32_t amount = ant_get_arg_value(ant, inst.mark_args.amount);
+            Cell* cell = simulation_get_cell(sim, ant->position);
+            if (amount > 0 && channel >= 0 && channel < 4)
+            {
+                bool overflow = (amount > 255) || (amount + cell->pheromones[channel] > 255); // The first condition is to avoid an int32_t overflow
+                if (overflow)
+                {
+                    cell->pheromones[channel] = 255;
+                }
+                else
+                {
+                    cell->pheromones[channel] += amount;
+                }
+            }
+            break;
         }
     }
     if (inst.type == INST_MOVE || inst.type == INST_PICKUP || inst.type == INST_DROP)
@@ -294,6 +289,19 @@ simulation_ant_run_step(Simulation *sim, Ant *ant)
 void simulation_run_step(Simulation *sim)
 {
     sim->step_number++;
+    // Decay the pheromones
+    for (Cell* it = sim->cells; it != sim->cells + sim->width * sim->height; it++)
+    {
+        for (int i = 0; i < 4; i++)
+        {
+            if (it->pheromones[i] > 0)
+            {
+                it->pheromones[i]--;
+            }
+        }
+    }
+
+    // Simulate the ants
     for (size_t i = 0; i < sim->settings.nb_ants; i++)
     {
         sim->ants[i].instruction_budget = 64;

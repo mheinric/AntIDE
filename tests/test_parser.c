@@ -77,7 +77,7 @@ test_parse_single_instruction_no_arg() {
 }
 
 void 
-test_parse_single_instruction_arg1() {
+test_parse_single_instructions() {
     //Test instructions with a single argument.
 
     const char* test_instructions[] = {
@@ -88,7 +88,9 @@ test_parse_single_instruction_arg1() {
         "MOVE NORTH",
         "MOVE HERE",
         "JMP r0",
-        "ID r0"
+        "ID r0",
+        "CARRYING r0",
+        "MARK CH_BLUE 20",
     };
 
     enum { NB_TESTS = sizeof(test_instructions) / sizeof(test_instructions[0]) };
@@ -101,7 +103,9 @@ test_parse_single_instruction_arg1() {
         instruction_create_move(argument_create_value(1)),
         instruction_create_move(argument_create_value(0)),
         instruction_create_jump(argument_create_register(0)),
-        instruction_create_id(0),
+        instruction_create_info(INST_ID, 0),
+        instruction_create_info(INST_CARRY, 0),
+        instruction_create_mark(argument_create_value(1), argument_create_value(20)),
     };
 
     for (int i = 0; i < NB_TESTS; i++)
@@ -175,6 +179,7 @@ test_parse_invalid_instruction() {
         "CALL 10 10",
         "SET 10 r0",
         "ADD 5 10",
+        "CARRYING 10",
     };
     enum { NB_ITEMS = sizeof(inst_str) / sizeof(inst_str[0]) };
 
@@ -253,7 +258,7 @@ run_all_parser_tests(void) {
     RUN_TEST(test_parse_read_inexistant_file);
     RUN_TEST(test_parse_empty_program);
     RUN_TEST(test_parse_single_instruction_no_arg);
-    RUN_TEST(test_parse_single_instruction_arg1);
+    RUN_TEST(test_parse_single_instructions);
     RUN_TEST(test_parse_single_instruction_arithmetic);
     RUN_TEST(test_parse_invalid_instruction);
     RUN_TEST(test_parse_multiple_instructions);

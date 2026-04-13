@@ -15,6 +15,7 @@ typedef enum {
 typedef struct {
     CellType type;
     Position position;
+    uint8_t pheromones[4];
 } Cell; 
 
 typedef struct {

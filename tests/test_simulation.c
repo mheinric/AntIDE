@@ -265,7 +265,7 @@ test_simulation_id(void)
 {
     Program prog; 
     program_init(&prog);
-    program_push_instruction(&prog, instruction_create_id(0));
+    program_push_instruction(&prog, instruction_create_info(INST_ID, 0));
     SimulationSettings settings = simulation_settings_create_test();
     settings.nb_ants = 10;
     Simulation sim; 
@@ -273,8 +273,44 @@ test_simulation_id(void)
     simulation_run_step(&sim);
     for (size_t i = 0; i < settings.nb_ants; i++)
     {
+        TEST_ASSERT_EQUAL_INT32(1, sim.ants[i].pc);
         TEST_ASSERT_EQUAL_INT32((int32_t) i, sim.ants[i].registers[0]);
     }
+}
+
+void 
+test_simulation_carrying(void)
+{
+    const char* program = "CARRYING r0";
+    Simulation sim = create_test_sim(program);
+    sim.ants[0].carrying_food = true;
+    simulation_run_step(&sim);
+    TEST_ASSERT_EQUAL(1, sim.ants[0].pc);
+    TEST_ASSERT_EQUAL(1, sim.ants[0].registers[0]); 
+}
+
+void 
+test_simulation_mark(void)
+{
+    const char* program = 
+        "main:\n"
+        "MARK CH_RED 100\n"
+        "PICKUP\n"
+        "JMP main\n"
+    ;
+    Simulation sim = create_test_sim(program);
+    sim.ants[0].carrying_food = true;
+    Position pos = sim.ants[0].position;
+    const Cell* cell= simulation_get_cell(&sim, pos);
+    simulation_run_step(&sim);
+    TEST_ASSERT_EQUAL(2, sim.ants[0].pc);
+    TEST_ASSERT_EQUAL_UINT8(100, cell->pheromones[0]);
+    simulation_run_step(&sim);
+    TEST_ASSERT_EQUAL(2, sim.ants[0].pc);
+    TEST_ASSERT_EQUAL_UINT8(199, cell->pheromones[0]); // The -1 comes from the decay at each step
+    simulation_run_step(&sim);
+    TEST_ASSERT_EQUAL(2, sim.ants[0].pc);
+    TEST_ASSERT_EQUAL_UINT8(255, cell->pheromones[0]);
 }
 
 int 
@@ -290,5 +326,7 @@ run_all_simulation_tests(void)
     RUN_TEST(test_simulation_conditional_jumps);
     RUN_TEST(test_simulation_call);
     RUN_TEST(test_simulation_id);
+    RUN_TEST(test_simulation_carrying);
+    RUN_TEST(test_simulation_mark);
     return UNITY_END();
 }

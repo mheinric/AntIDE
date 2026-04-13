@@ -152,19 +152,23 @@ typedef struct {
 } Parser;
 
 const struct { const char* key; Argument value; } parser_builtin_constants[] = {
-    { .key = "r0",    .value = { .is_register = true, .register_index = 0 } },
-    { .key = "r1",    .value = { .is_register = true, .register_index = 1 } },
-    { .key = "r2",    .value = { .is_register = true, .register_index = 2 } },
-    { .key = "r3",    .value = { .is_register = true, .register_index = 3 } },
-    { .key = "r4",    .value = { .is_register = true, .register_index = 4 } },
-    { .key = "r5",    .value = { .is_register = true, .register_index = 5 } },
-    { .key = "r6",    .value = { .is_register = true, .register_index = 6 } },
-    { .key = "r7",    .value = { .is_register = true, .register_index = 7 } },
-    { .key = "HERE",  .value = { .is_register = false, .value = 0 } },
-    { .key = "NORTH", .value = { .is_register = false, .value = 1 } },
-    { .key = "EAST",  .value = { .is_register = false, .value = 2 } },
-    { .key = "SOUTH", .value = { .is_register = false, .value = 3 } },
-    { .key = "WEST",  .value = { .is_register = false, .value = 4 } },
+    { .key = "r0",        .value = { .is_register = true, .register_index = 0 } },
+    { .key = "r1",        .value = { .is_register = true, .register_index = 1 } },
+    { .key = "r2",        .value = { .is_register = true, .register_index = 2 } },
+    { .key = "r3",        .value = { .is_register = true, .register_index = 3 } },
+    { .key = "r4",        .value = { .is_register = true, .register_index = 4 } },
+    { .key = "r5",        .value = { .is_register = true, .register_index = 5 } },
+    { .key = "r6",        .value = { .is_register = true, .register_index = 6 } },
+    { .key = "r7",        .value = { .is_register = true, .register_index = 7 } },
+    { .key = "HERE",      .value = { .is_register = false, .value = 0 } },
+    { .key = "NORTH",     .value = { .is_register = false, .value = 1 } },
+    { .key = "EAST",      .value = { .is_register = false, .value = 2 } },
+    { .key = "SOUTH",     .value = { .is_register = false, .value = 3 } },
+    { .key = "WEST",      .value = { .is_register = false, .value = 4 } },
+    { .key = "CH_RED",    .value = { .is_register = false, .value = 0 } },
+    { .key = "CH_BLUE",   .value = { .is_register = false, .value = 1 } },
+    { .key = "CH_GREEN",  .value = { .is_register = false, .value = 2 } },
+    { .key = "CH_YELLOW", .value = { .is_register = false, .value = 3 } },
 };
 
 void 
@@ -424,6 +428,24 @@ parser_read_conditional_jump_instruction(
 }
 
 void
+parser_read_info_instruction(Parser *parser, 
+    InstructionType type, 
+    const Token *tokens, 
+    unsigned nb_token)
+{
+    if (!parser_verify_nb_arguments(parser, 2, nb_token))
+    {
+        return;
+    }
+    uint8_t target_register; 
+    if (!parser_read_register(parser, &tokens[1], &target_register))
+    {
+        return; 
+    }
+    program_push_instruction(&parser->parse_result.program, instruction_create_info(type, target_register));
+}
+
+void
 read_instruction_from_tokens(
     Parser* parser,
     const TokenLine* token_line)
@@ -558,16 +580,25 @@ read_instruction_from_tokens(
     }
     else if (token_matches_str(&tokens[0], "ID"))
     {
-        if (!parser_verify_nb_arguments(parser, 2, nb_token))
+        parser_read_info_instruction(parser, INST_ID, tokens, nb_token);
+    }
+    else if (token_matches_str(&tokens[0], "CARRYING"))
+    {
+        parser_read_info_instruction(parser, INST_CARRY, tokens, nb_token);
+    }
+    else if (token_matches_str(&tokens[0], "MARK"))
+    {
+        if (!parser_verify_nb_arguments(parser, 3, nb_token))
+        {
+            return;
+        } 
+        Argument channel, amount; 
+        if (!parser_read_argument(parser, &tokens[1], &channel) ||
+            !parser_read_argument(parser, &tokens[2], &amount))
         {
             return;
         }
-        uint8_t target_register; 
-        if (!parser_read_register(parser, &tokens[1], &target_register))
-        {
-            return; 
-        }
-        program_push_instruction(&parser->parse_result.program, instruction_create_id(target_register));
+        program_push_instruction(&parser->parse_result.program, instruction_create_mark(channel, amount));
     }
     else 
     {

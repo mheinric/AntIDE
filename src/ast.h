@@ -6,6 +6,7 @@ typedef enum {
     INST_PICKUP,
     INST_DROP,
     INST_MOVE,
+    INST_MARK,
 
     //Jumps
     INST_JMP,
@@ -30,7 +31,8 @@ typedef enum {
     INST_RANDOM,
 
     //Probing the environment
-    INST_ID
+    INST_ID,
+    INST_CARRY,
 } InstructionType;
 
 typedef struct {
@@ -60,7 +62,8 @@ typedef struct {
         struct { Argument target; } jmp_arg;
         struct { Argument cond_value1; Argument cond_value2; Argument target; } cond_jmp_arg;
         struct { uint8_t return_register; Argument target; } call_arg;
-        struct { uint8_t target_register; } id_arg;
+        struct { uint8_t target_register; } info_arg;
+        struct { Argument channel; Argument amount; } mark_args;
     };
 } Instruction;
 
@@ -80,7 +83,10 @@ Instruction
 instruction_create_call(uint8_t return_register, Argument target);
 
 Instruction 
-instruction_create_id(uint8_t target_reg);
+instruction_create_info(InstructionType type, uint8_t target_reg);
+
+Instruction
+instruction_create_mark(Argument channel, Argument amount);
 
 bool 
 instruction_equal(Instruction first, Instruction second);

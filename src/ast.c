@@ -79,12 +79,20 @@ Instruction instruction_create_call(uint8_t return_register, Argument target)
     };
 }
 
-Instruction instruction_create_id(uint8_t target_reg)
+Instruction instruction_create_info(InstructionType type, uint8_t target_reg)
 {
     return (Instruction) {
-        .type = INST_ID, 
-        .id_arg = { .target_register = target_reg }
+        .type = type, 
+        .info_arg = { .target_register = target_reg }
     } ;
+}
+
+Instruction instruction_create_mark(Argument channel, Argument amount)
+{
+    return (Instruction) {
+        .type = INST_MARK, 
+        .mark_args = { .channel = channel, .amount = amount }
+    };
 }
 
 bool instruction_equal(Instruction first, Instruction second)
@@ -127,7 +135,11 @@ bool instruction_equal(Instruction first, Instruction second)
             return first.call_arg.return_register == second.call_arg.return_register && 
                 argument_equal(first.call_arg.target, second.call_arg.target);
         case INST_ID: 
-            return first.id_arg.target_register == second.id_arg.target_register;
+        case INST_CARRY: 
+            return first.info_arg.target_register == second.info_arg.target_register;
+        case INST_MARK: 
+            return argument_equal(first.mark_args.amount, second.mark_args.amount) &&
+                argument_equal(first.mark_args.channel, second.mark_args.channel);
     }
     return false;
 }
