@@ -9,7 +9,7 @@ test_simulation_init(void)
     Program prog; 
     program_init(&prog);
     Simulation sim; 
-    simulation_init(&sim, prog);
+    simulation_init(&sim, simulation_settings_create_test(), prog);
     simulation_run_step(&sim);
     TEST_ASSERT_EQUAL_UINT64(1, sim.step_number);
     TEST_ASSERT_EQUAL_UINT64(0, sim.ants[0].id);
@@ -29,7 +29,7 @@ test_simulation_single_step_move(void)
     // MOVE NORTH
     program_push_instruction(&prog, instruction_create_move(argument_create_value(1)));
     Simulation sim; 
-    simulation_init(&sim, prog);
+    simulation_init(&sim, simulation_settings_create_test(), prog);
     Position start_pos = sim.ants[0].position;
     simulation_run_step(&sim);
     Position end_pos = sim.ants[0].position;
@@ -50,7 +50,7 @@ create_test_sim(const char* program)
     }
     vector_parse_error_cleanup(&parse_result.errors);
     Simulation sim; 
-    simulation_init(&sim, parse_result.program);
+    simulation_init(&sim, simulation_settings_create_test(), parse_result.program);
     return sim;
 }
 
@@ -259,6 +259,24 @@ test_simulation_call(void)
     TEST_ASSERT_EQUAL(1, sim.ants[0].registers[0]);
 }
 
+
+void 
+test_simulation_id(void)
+{
+    Program prog; 
+    program_init(&prog);
+    program_push_instruction(&prog, instruction_create_id(0));
+    SimulationSettings settings = simulation_settings_create_test();
+    settings.nb_ants = 10;
+    Simulation sim; 
+    simulation_init(&sim, settings, prog);
+    simulation_run_step(&sim);
+    for (size_t i = 0; i < settings.nb_ants; i++)
+    {
+        TEST_ASSERT_EQUAL_INT32((int32_t) i, sim.ants[i].registers[0]);
+    }
+}
+
 int 
 run_all_simulation_tests(void) 
 {
@@ -271,5 +289,6 @@ run_all_simulation_tests(void)
     RUN_TEST(test_simulation_loop);
     RUN_TEST(test_simulation_conditional_jumps);
     RUN_TEST(test_simulation_call);
+    RUN_TEST(test_simulation_id);
     return UNITY_END();
 }

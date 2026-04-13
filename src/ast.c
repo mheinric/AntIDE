@@ -79,6 +79,14 @@ Instruction instruction_create_call(uint8_t return_register, Argument target)
     };
 }
 
+Instruction instruction_create_id(uint8_t target_reg)
+{
+    return (Instruction) {
+        .type = INST_ID, 
+        .id_arg = { .target_register = target_reg }
+    } ;
+}
+
 bool instruction_equal(Instruction first, Instruction second)
 {
     if (first.type != second.type)
@@ -118,6 +126,8 @@ bool instruction_equal(Instruction first, Instruction second)
         case INST_CALL: 
             return first.call_arg.return_register == second.call_arg.return_register && 
                 argument_equal(first.call_arg.target, second.call_arg.target);
+        case INST_ID: 
+            return first.id_arg.target_register == second.id_arg.target_register;
     }
     return false;
 }

@@ -28,6 +28,9 @@ typedef enum {
     INST_LSHIFT,
     INST_RSHIFT,
     INST_RANDOM,
+
+    //Probing the environment
+    INST_ID
 } InstructionType;
 
 typedef struct {
@@ -57,6 +60,7 @@ typedef struct {
         struct { Argument target; } jmp_arg;
         struct { Argument cond_value1; Argument cond_value2; Argument target; } cond_jmp_arg;
         struct { uint8_t return_register; Argument target; } call_arg;
+        struct { uint8_t target_register; } id_arg;
     };
 } Instruction;
 
@@ -74,6 +78,9 @@ instruction_create_conditional_jump(InstructionType type, Argument cond_value1, 
 
 Instruction
 instruction_create_call(uint8_t return_register, Argument target);
+
+Instruction 
+instruction_create_id(uint8_t target_reg);
 
 bool 
 instruction_equal(Instruction first, Instruction second);

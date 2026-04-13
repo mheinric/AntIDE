@@ -556,6 +556,19 @@ read_instruction_from_tokens(
         }
         program_push_instruction(&parser->parse_result.program, instruction_create_call(return_register, target));
     }
+    else if (token_matches_str(&tokens[0], "ID"))
+    {
+        if (!parser_verify_nb_arguments(parser, 2, nb_token))
+        {
+            return;
+        }
+        uint8_t target_register; 
+        if (!parser_read_register(parser, &tokens[1], &target_register))
+        {
+            return; 
+        }
+        program_push_instruction(&parser->parse_result.program, instruction_create_id(target_register));
+    }
     else 
     {
         parser_push_error(parser, "Unknown instruction name");

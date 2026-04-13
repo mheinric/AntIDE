@@ -18,7 +18,7 @@ typedef struct {
 } Cell; 
 
 typedef struct {
-    size_t id;
+    int32_t id;
     int32_t pc;
     int32_t registers[8];
     Position position;
@@ -39,8 +39,21 @@ random_generator_init(RandomGenerator *rand, uint64_t seed);
 int32_t 
 random_generator_generate(RandomGenerator *rand, int32_t max_bound);
 
+typedef struct {
+    size_t random_seed; 
+    size_t width; 
+    size_t height;
+    size_t nb_ants;
+} SimulationSettings;
+
+SimulationSettings
+simulation_settings_create_default(size_t random_seed);
+
+SimulationSettings
+simulation_settings_create_test();
 
 typedef struct {
+    SimulationSettings settings;
     size_t step_number;
     Ant* ants;
     Cell* cells;
@@ -51,7 +64,7 @@ typedef struct {
 } Simulation;
 
 void
-simulation_init(Simulation *sim, Program prog);
+simulation_init(Simulation *sim, SimulationSettings settings, Program prog);
 
 void
 simulation_run_step(Simulation *sim);

@@ -25,15 +25,40 @@ int32_t random_generator_generate(RandomGenerator *rand, int32_t max_bound)
     return (rand->state >> 32) % max_bound; //Note when max_bound is negative we get negative values.
 }
 
-void simulation_init(Simulation *sim, Program prog)
+SimulationSettings simulation_settings_create_default(size_t random_seed)
 {
+    return (SimulationSettings) {
+        .random_seed = random_seed,
+        .width = 128, 
+        .height = 128,
+        .nb_ants = 200,
+    };
+}
+
+SimulationSettings simulation_settings_create_test()
+{
+    return (SimulationSettings) {
+        .random_seed = 42,
+        .width = 10, 
+        .height = 10,
+        .nb_ants = 1,
+    };
+}
+
+void simulation_init(Simulation *sim, SimulationSettings settings, Program prog)
+{
+    sim->settings = settings;
     sim->step_number = 0;
-    sim->ants = calloc(1, sizeof(Ant));
-    sim->ants[0].position.x = 63; 
-    sim->ants[0].position.y = 63; 
+    sim->ants = calloc(settings.nb_ants, sizeof(Ant));
+    for (size_t i = 0; i < settings.nb_ants; i++)
+    {
+        sim->ants[i].id = (int32_t) i;
+        sim->ants[i].position.x = (settings.width - 1) / 2; 
+        sim->ants[i].position.y = (settings.height -1) / 2; 
+    }
     sim->program = prog;
-    sim->width = 128;
-    sim->height = 128;
+    sim->width = settings.width;
+    sim->height = settings.height;
     sim->cells = calloc(sim->width * sim->height, sizeof(Cell));
     for (size_t y = 0; y < sim->height; y++)
     {
@@ -43,7 +68,7 @@ void simulation_init(Simulation *sim, Program prog)
             sim->cells[sim->width * y + x].position.y = x;
         }
     }
-    random_generator_init(&sim->random_generator, 42);
+    random_generator_init(&sim->random_generator, settings.random_seed);
 }
 
 void simulation_ant_run_single_instruction(Simulation *sim, Ant *ant, Instruction inst)
@@ -240,6 +265,10 @@ void simulation_ant_run_single_instruction(Simulation *sim, Ant *ant, Instructio
             ant->pc = target_address;
             break;
         }
+        case INST_ID: 
+        {
+            ant->registers[inst.id_arg.target_register] = ant->id;
+        }
     }
     if (inst.type == INST_MOVE || inst.type == INST_PICKUP || inst.type == INST_DROP)
     {
@@ -265,8 +294,11 @@ simulation_ant_run_step(Simulation *sim, Ant *ant)
 void simulation_run_step(Simulation *sim)
 {
     sim->step_number++;
-    sim->ants[0].instruction_budget = 64;
-    simulation_ant_run_step(sim, sim->ants);
+    for (size_t i = 0; i < sim->settings.nb_ants; i++)
+    {
+        sim->ants[i].instruction_budget = 64;
+        simulation_ant_run_step(sim, &sim->ants[i]);
+    }
 }
 
 Cell *simulation_get_cell(Simulation *sim, Position pos)

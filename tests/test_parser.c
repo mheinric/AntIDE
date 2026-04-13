@@ -88,6 +88,7 @@ test_parse_single_instruction_arg1() {
         "MOVE NORTH",
         "MOVE HERE",
         "JMP r0",
+        "ID r0"
     };
 
     enum { NB_TESTS = sizeof(test_instructions) / sizeof(test_instructions[0]) };
@@ -100,6 +101,7 @@ test_parse_single_instruction_arg1() {
         instruction_create_move(argument_create_value(1)),
         instruction_create_move(argument_create_value(0)),
         instruction_create_jump(argument_create_register(0)),
+        instruction_create_id(0),
     };
 
     for (int i = 0; i < NB_TESTS; i++)
@@ -159,8 +161,7 @@ test_parse_single_instruction_arithmetic() {
 
 void 
 test_parse_invalid_instruction() {
-    enum { NB_ITEMS = 6 };
-    const char* inst_str[NB_ITEMS] = {
+    const char* inst_str[] = {
         "toto",
         "foo-bar",
         //Missing arguments
@@ -170,7 +171,12 @@ test_parse_invalid_instruction() {
         "DROP HERE",
         //Invalid number format
         "MOVE 1ABD", 
+        //Invalid arguments (expect register but got number)
+        "CALL 10 10",
+        "SET 10 r0",
+        "ADD 5 10",
     };
+    enum { NB_ITEMS = sizeof(inst_str) / sizeof(inst_str[0]) };
 
     for (int i = 0; i < NB_ITEMS; i++)
     {
