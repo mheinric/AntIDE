@@ -169,6 +169,11 @@ const struct { const char* key; Argument value; } parser_builtin_constants[] = {
     { .key = "CH_BLUE",   .value = { .is_register = false, .value = CH_BLUE } },
     { .key = "CH_GREEN",  .value = { .is_register = false, .value = CH_GREEN } },
     { .key = "CH_YELLOW", .value = { .is_register = false, .value = CH_YELLOW } },
+    { .key = "EMPTY",     .value = { .is_register = false, .value = ENT_EMPTY } },
+    { .key = "WALL",      .value = { .is_register = false, .value = ENT_WALL } },
+    { .key = "FOOD",      .value = { .is_register = false, .value = ENT_FOOD } },
+    { .key = "NEST",      .value = { .is_register = false, .value = ENT_NEST } },
+    { .key = "ANT",       .value = { .is_register = false, .value = ENT_ANT } },
 };
 
 void 
@@ -630,6 +635,49 @@ read_instruction_from_tokens(
             return;
         }
         program_push_instruction(&parser->parse_result.program, instruction_create_smell(channel, target_register));
+    }
+    else if (token_matches_str(&tokens[0], "PROBE"))
+    {
+        if (!parser_verify_nb_arguments(parser, 3, nb_token))
+        {
+            return;
+        } 
+        Argument direction;
+        uint8_t target_register; 
+        if (!parser_read_argument(parser, &tokens[1], &direction) ||
+            !parser_read_register(parser, &tokens[2], &target_register))
+        {
+            return;
+        }
+        program_push_instruction(&parser->parse_result.program, instruction_create_probe(direction, target_register));
+    }
+    else if (token_matches_str(&tokens[0], "SENSE"))
+    {
+        if (!parser_verify_nb_arguments(parser, 3, nb_token))
+        {
+            return;
+        } 
+        Argument entity_type;
+        uint8_t target_register; 
+        if (!parser_read_argument(parser, &tokens[1], &entity_type) ||
+            !parser_read_register(parser, &tokens[2], &target_register))
+        {
+            return;
+        }
+        program_push_instruction(&parser->parse_result.program, instruction_create_sense(entity_type, target_register));
+    }
+    else if (token_matches_str(&tokens[0], "TAG"))
+    {
+        if (!parser_verify_nb_arguments(parser, 2, nb_token))
+        {
+            return;
+        } 
+        Argument tag_value;
+        if (!parser_read_argument(parser, &tokens[1], &tag_value))
+        {
+            return;
+        }
+        program_push_instruction(&parser->parse_result.program, instruction_create_tag(tag_value));
     }
     else 
     {

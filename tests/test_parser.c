@@ -80,44 +80,76 @@ void
 test_parse_single_instructions() {
     //Test instructions with a single argument.
 
-    const char* test_instructions[] = {
-        "MOVE r0", 
-        "MOVE r1",
-        "MOVE 2",
-        "MOVE -165",
-        "MOVE NORTH",
-        "MOVE HERE",
-        "JMP r0",
-        "ID r0",
-        "CARRYING r0",
-        "MARK CH_BLUE 20",
-        "SNIFF CH_RED HERE r1",
-        "SMELL CH_YELLOW r2",
+    const struct { const char* inst_string; Instruction expected_inst; } test_cases[] = {
+        {
+            .inst_string = "MOVE r0", 
+            .expected_inst = instruction_create_move(argument_create_register(0)),
+        },
+        {
+            .inst_string = "MOVE r1",
+            .expected_inst = instruction_create_move(argument_create_register(1)),
+        },
+        {
+            .inst_string = "MOVE 2",
+            .expected_inst = instruction_create_move(argument_create_value(2)),
+        },
+        {
+            .inst_string = "MOVE -165",
+            .expected_inst = instruction_create_move(argument_create_value(-165)),
+        },
+        {
+            .inst_string = "MOVE NORTH",
+            .expected_inst = instruction_create_move(argument_create_value(DIR_NORTH)),
+        },
+        {
+            .inst_string = "MOVE HERE",
+            .expected_inst = instruction_create_move(argument_create_value(DIR_HERE)),
+        },
+        {
+            .inst_string = "JMP r0",
+            .expected_inst = instruction_create_jump(argument_create_register(0)),
+        },
+        {
+            .inst_string = "ID r0",
+            .expected_inst = instruction_create_info(INST_ID, 0),
+        },
+        {
+            .inst_string = "CARRYING r0",
+            .expected_inst = instruction_create_info(INST_CARRY, 0),
+        },
+        {
+            .inst_string = "MARK CH_BLUE 20",
+            .expected_inst = instruction_create_mark(argument_create_value(1), argument_create_value(20)),
+        },
+        {
+            .inst_string = "SNIFF CH_RED HERE r1",
+            .expected_inst = instruction_create_sniff(argument_create_value(CH_RED), argument_create_value(0), 1),
+        },
+        {
+            .inst_string = "SMELL CH_YELLOW r2",
+            .expected_inst = instruction_create_smell(argument_create_value(CH_YELLOW), 2),
+        },
+        {
+            .inst_string = "PROBE NORTH r0",
+            .expected_inst = instruction_create_probe(argument_create_value(DIR_NORTH), 0),
+        },
+        {
+            .inst_string = "SENSE WALL r2",
+            .expected_inst = instruction_create_sense(argument_create_value(1), 2),
+        },
+        {
+            .inst_string = "TAG 5",
+            .expected_inst = instruction_create_tag(argument_create_value(5)),
+        },
     };
-
-    enum { NB_TESTS = sizeof(test_instructions) / sizeof(test_instructions[0]) };
-
-    const Instruction expected_results[NB_TESTS] = {
-        instruction_create_move(argument_create_register(0)),
-        instruction_create_move(argument_create_register(1)),
-        instruction_create_move(argument_create_value(2)),
-        instruction_create_move(argument_create_value(-165)),
-        instruction_create_move(argument_create_value(DIR_NORTH)),
-        instruction_create_move(argument_create_value(DIR_HERE)),
-        instruction_create_jump(argument_create_register(0)),
-        instruction_create_info(INST_ID, 0),
-        instruction_create_info(INST_CARRY, 0),
-        instruction_create_mark(argument_create_value(1), argument_create_value(20)),
-        instruction_create_sniff(argument_create_value(CH_RED), argument_create_value(0), 1),
-        instruction_create_smell(argument_create_value(CH_YELLOW), 2),
-    };
+    enum { NB_TESTS = sizeof(test_cases) / sizeof(test_cases[0]) };
 
     for (int i = 0; i < NB_TESTS; i++)
     {
-        ParseResult result = parse_program_from_string(test_instructions[i]);
+        ParseResult result = parse_program_from_string(test_cases[i].inst_string);
         TEST_ASSERT_NO_ERRORS(&result);
-        TEST_ASSERT_EQUAL_UINT64_MESSAGE(1, program_size(&result.program), test_instructions[i]);
-        TEST_ASSERT_TRUE_MESSAGE(instruction_equal(expected_results[i], result.program.instructions.begin[0]), test_instructions[i]);
+        TEST_ASSERT_EQUAL_UINT64_MESSAGE(1, program_size(&result.program), test_cases[i].inst_string);
+        TEST_ASSERT_TRUE_MESSAGE(instruction_equal(test_cases[i].expected_inst, result.program.instructions.begin[0]), test_cases[i].inst_string);
         parse_result_cleanup(&result);
     }
 }

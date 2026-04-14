@@ -1,16 +1,24 @@
 #include "ast.h"
 
-bool direction_is_valid(int32_t dir_value)
+bool 
+direction_is_valid(int32_t dir_value)
 {
     return dir_value >= 0 && dir_value < 5;
 }
 
-bool channel_is_valid(int32_t channel_value)
+bool 
+channel_is_valid(int32_t channel_value)
 {
     return channel_value >= 0 && channel_value < 4;
 }
 
-Argument argument_create_register(uint8_t reg_index)
+bool entity_type_is_valid(int32_t entity_type)
+{
+    return entity_type >= 0 && entity_type < 5;
+}
+
+Argument 
+argument_create_register(uint8_t reg_index)
 {
     Argument result; 
     result.is_register = true; 
@@ -18,7 +26,8 @@ Argument argument_create_register(uint8_t reg_index)
     return result;
 }
 
-Argument argument_create_value(int32_t value)
+Argument 
+argument_create_value(int32_t value)
 {
     Argument result; 
     result.is_register = false; 
@@ -26,7 +35,8 @@ Argument argument_create_value(int32_t value)
     return result;
 }
 
-bool argument_equal(Argument first, Argument second)
+bool 
+argument_equal(Argument first, Argument second)
 {
     if (first.is_register != second.is_register)
     {
@@ -42,7 +52,8 @@ bool argument_equal(Argument first, Argument second)
     }
 }
 
-Instruction instruction_create_move(Argument dir)
+Instruction 
+instruction_create_move(Argument dir)
 {
     return (Instruction) {
         .type = INST_MOVE, 
@@ -50,7 +61,8 @@ Instruction instruction_create_move(Argument dir)
     };
 }
 
-Instruction instruction_create_arithmetic(InstructionType type, uint8_t target_reg, Argument arg)
+Instruction 
+instruction_create_arithmetic(InstructionType type, uint8_t target_reg, Argument arg)
 {
     return (Instruction) {
         .type = type, 
@@ -58,7 +70,8 @@ Instruction instruction_create_arithmetic(InstructionType type, uint8_t target_r
     };
 }
 
-Instruction instruction_create_jump(Argument target)
+Instruction 
+instruction_create_jump(Argument target)
 {
     return (Instruction) {
         .type = INST_JMP, 
@@ -66,7 +79,8 @@ Instruction instruction_create_jump(Argument target)
     };
 }
 
-Instruction instruction_create_conditional_jump(InstructionType type, Argument cond_value1, Argument cond_value2, Argument target)
+Instruction 
+instruction_create_conditional_jump(InstructionType type, Argument cond_value1, Argument cond_value2, Argument target)
 {
     return (Instruction) {
         .type = type, 
@@ -78,7 +92,8 @@ Instruction instruction_create_conditional_jump(InstructionType type, Argument c
     };
 }
 
-Instruction instruction_create_call(uint8_t return_register, Argument target)
+Instruction 
+instruction_create_call(uint8_t return_register, Argument target)
 {
     return (Instruction) {
         .type = INST_CALL, 
@@ -89,7 +104,8 @@ Instruction instruction_create_call(uint8_t return_register, Argument target)
     };
 }
 
-Instruction instruction_create_info(InstructionType type, uint8_t target_reg)
+Instruction 
+instruction_create_info(InstructionType type, uint8_t target_reg)
 {
     return (Instruction) {
         .type = type, 
@@ -97,7 +113,8 @@ Instruction instruction_create_info(InstructionType type, uint8_t target_reg)
     } ;
 }
 
-Instruction instruction_create_mark(Argument channel, Argument amount)
+Instruction 
+instruction_create_mark(Argument channel, Argument amount)
 {
     return (Instruction) {
         .type = INST_MARK, 
@@ -105,7 +122,8 @@ Instruction instruction_create_mark(Argument channel, Argument amount)
     };
 }
 
-Instruction instruction_create_sniff(Argument channel, Argument direction, uint8_t target_reg)
+Instruction 
+instruction_create_sniff(Argument channel, Argument direction, uint8_t target_reg)
 {
     return (Instruction){
         .type = INST_SNIFF,
@@ -113,7 +131,8 @@ Instruction instruction_create_sniff(Argument channel, Argument direction, uint8
     };
 }
 
-Instruction instruction_create_smell(Argument channel, uint8_t target_reg)
+Instruction 
+instruction_create_smell(Argument channel, uint8_t target_reg)
 {
     return (Instruction) {
         .type = INST_SMELL, 
@@ -121,7 +140,35 @@ Instruction instruction_create_smell(Argument channel, uint8_t target_reg)
     };
 }
 
-bool instruction_equal(Instruction first, Instruction second)
+
+Instruction 
+instruction_create_probe(Argument direction, uint8_t target_reg)
+{
+    return (Instruction) {
+        .type = INST_PROBE, 
+        .probe_args = { .direction = direction, .target_reg = target_reg },
+    };
+}
+
+Instruction 
+instruction_create_sense(Argument sense_type, uint8_t target_reg)
+{
+    return (Instruction) {
+        .type = INST_SENSE,
+        .sense_args = { .type = sense_type, .target_reg = target_reg }
+    };
+}
+
+Instruction instruction_create_tag(Argument tag_value)
+{
+    return (Instruction) {
+        .type = INST_TAG,
+        .tag_args = { .value = tag_value }
+    };
+}
+
+bool 
+instruction_equal(Instruction first, Instruction second)
 {
     if (first.type != second.type)
     {
@@ -173,21 +220,32 @@ bool instruction_equal(Instruction first, Instruction second)
         case INST_SMELL: 
             return first.smell_args.target_reg == second.smell_args.target_reg &&
                 argument_equal(first.smell_args.channel, second.smell_args.channel);
+        case INST_PROBE: 
+            return first.probe_args.target_reg == second.probe_args.target_reg &&
+                argument_equal(first.probe_args.direction, second.probe_args.direction);
+        case INST_SENSE: 
+            return first.sense_args.target_reg == second.sense_args.target_reg &&
+                argument_equal(first.sense_args.type, second.sense_args.type);
+        case INST_TAG: 
+            return argument_equal(first.tag_args.value, second.tag_args.value);
     }
     return false;
 }
 
-void program_init(Program *program)
+void 
+program_init(Program *program)
 {
     vector_instruction_init(&program->instructions);
 }
 
-void program_init_move(Program *target, Program *source)
+void 
+program_init_move(Program *target, Program *source)
 {
     vector_instruction_init_move(&target->instructions, &source->instructions);
 }
 
-void program_cleanup(Program *program)
+void 
+program_cleanup(Program *program)
 {
     vector_instruction_cleanup(&program->instructions);
 }

@@ -1,9 +1,24 @@
 #include "simulation.h"
 
+bool 
+cell_matches_entity(Cell *cell, EntityType entity_type)
+{
+    switch (entity_type)
+    {
+        case ENT_EMPTY: return cell->type == CELL_TYPE_EMPTY && cell->food_amount == 0;
+        case ENT_WALL: return cell->type == CELL_TYPE_WALL;
+        case ENT_FOOD: return cell->type == CELL_TYPE_EMPTY && cell->food_amount >0;
+        case ENT_NEST: return cell->type == CELL_TYPE_NEST;
+        case ENT_ANT: return cell->nb_ants > 0;
+    }
+    return false;
+}
+
 int32_t ant_get_arg_value(Ant *ant, Argument arg)
 {
     if (arg.is_register)
     {
+        assert(arg.register_index < (sizeof(ant->registers) / sizeof(ant->registers[0])));
         return ant->registers[arg.register_index];
     }
     else 
@@ -19,10 +34,12 @@ void random_generator_init(RandomGenerator *rand, uint64_t seed)
 
 int32_t random_generator_generate(RandomGenerator *rand, int32_t max_bound)
 {
+    assert(max_bound != 0);
     // Values taken from https://en.wikipedia.org/wiki/Linear_congruential_generator from the MUSL implementation
     rand->state = rand->state * 6364136223846793005 + 1;
     // we return the upper bits
-    return (rand->state >> 32) % max_bound; //Note when max_bound is negative we get negative values.
+    int32_t result = (rand->state >> 32) % abs(max_bound);
+    return max_bound < 0 ? -result : result; //Note when max_bound is negative we get negative values.
 }
 
 SimulationSettings simulation_settings_create_default(size_t random_seed)
@@ -50,11 +67,11 @@ void simulation_init(Simulation *sim, SimulationSettings settings, Program prog)
     sim->settings = settings;
     sim->step_number = 0;
     sim->ants = calloc(settings.nb_ants, sizeof(Ant));
+    Position default_pos = { .x = (settings.width - 1) / 2, .y = (settings.height -1) / 2 }; 
     for (size_t i = 0; i < settings.nb_ants; i++)
     {
         sim->ants[i].id = (int32_t) i;
-        sim->ants[i].position.x = (settings.width - 1) / 2; 
-        sim->ants[i].position.y = (settings.height -1) / 2; 
+        sim->ants[i].position = default_pos; 
     }
     sim->program = prog;
     sim->width = settings.width;
@@ -68,6 +85,8 @@ void simulation_init(Simulation *sim, SimulationSettings settings, Program prog)
             sim->cells[sim->width * y + x].position.y = x;
         }
     }
+    simulation_get_cell(sim, default_pos)->nb_ants = settings.nb_ants;
+    sim->score = 0;
     random_generator_init(&sim->random_generator, settings.random_seed);
 }
 
@@ -79,8 +98,13 @@ void simulation_ant_run_single_instruction(Simulation *sim, Ant *ant, Instructio
         case INST_MOVE: 
         {
             int32_t dir = ant_get_arg_value(ant, inst.move_args.dir);
-            ant->position.x += dir == 2 ? 1 : dir == 4 ? -1 : 0;
-            ant->position.y += dir == 1 ? 1 : dir == 3 ? -1 : 0;
+            Position new_pos = ant->position;
+            new_pos.x += dir == 2 ? 1 : dir == 4 ? -1 : 0;
+            new_pos.y += dir == 1 ? 1 : dir == 3 ? -1 : 0;
+            if (simulation_get_cell(sim, new_pos)->type != CELL_TYPE_WALL)
+            {
+                simulation_set_ant_position(sim, ant, new_pos);
+            }
             break;
         }
         case INST_PICKUP: 
@@ -320,12 +344,72 @@ void simulation_ant_run_single_instruction(Simulation *sim, Ant *ant, Instructio
             }
             break;
         }
+        case INST_PROBE:
+        {
+            int32_t dir = ant_get_arg_value(ant, inst.probe_args.direction);
+            if (!direction_is_valid(dir))
+            {
+                break;
+            }
+            Cell* cell = simulation_get_neighbor_cell(sim, ant->position, (Direction) dir);
+            int32_t result = 0; 
+            switch (cell->type)
+            {
+                case CELL_TYPE_EMPTY: result = cell->food_amount > 0 ? ENT_FOOD : ENT_EMPTY; break;
+                case CELL_TYPE_NEST: result = ENT_NEST; break;
+                case CELL_TYPE_WALL: result = ENT_WALL; break;
+            }
+            ant->registers[inst.probe_args.target_reg] = result;
+            break;
+        }
+        case INST_SENSE:
+        {
+            int32_t entity_type = ant_get_arg_value(ant, inst.sense_args.type);
+            if (!entity_type_is_valid(entity_type))
+            {
+                break;
+            }
+            int32_t found_directions[4];
+            int32_t nb_found = 0;
+            for (Direction dir = DIR_NORTH; dir <= DIR_WEST; dir++)
+            {
+                Cell *cell = simulation_get_neighbor_cell(sim, ant->position, dir);
+                if (cell_matches_entity(cell, (EntityType) entity_type))
+                {
+                    found_directions[nb_found] = dir;
+                    nb_found++;
+                }
+            }
+            if (nb_found == 0)
+            {
+                ant->registers[inst.sense_args.target_reg] = 0;
+            }
+            else if (nb_found == 1)
+            {
+                ant->registers[inst.sense_args.target_reg] = found_directions[0];
+            }
+            else
+            {
+                size_t random_index = random_generator_generate(&sim->random_generator, nb_found);
+                ant->registers[inst.sense_args.target_reg] = found_directions[random_index];
+            }
+            break;
+        }
+        case INST_TAG:
+        {
+            int32_t tag_value = ant_get_arg_value(ant, inst.tag_args.value);
+            if (tag_value >= 0 && tag_value < 8)
+            {
+                ant->tag = tag_value;
+            }
+            break;
+        }
     }
     if (inst.type == INST_MOVE || inst.type == INST_PICKUP || inst.type == INST_DROP)
     {
         ant->instruction_budget = 0;
     }
-    else
+    else if(inst.type != INST_TAG) // The tag instruction does not count towards the instruction budget
     {
         ant->instruction_budget--;
     }
@@ -369,12 +453,16 @@ simulation_run_step(Simulation *sim)
 Cell*
 simulation_get_cell(Simulation *sim, Position pos)
 {
+    assert(pos.x < sim->width);
+    assert(pos.y < sim->height);
     return &sim->cells[sim->width * pos.y + pos.x];
 }
 
 Cell*
 simulation_get_neighbor_cell(Simulation *sim, Position pos, Direction dir)
 {
+    assert(pos.x > 0 && pos.x < sim->width - 1); // No support for fetching neighbors of border cells
+    assert(pos.y > 0 && pos.y < sim->height - 1);
     switch(dir)
     {
         case DIR_HERE: break; 
@@ -385,4 +473,14 @@ simulation_get_neighbor_cell(Simulation *sim, Position pos, Direction dir)
         case DIR_RANDOM: return simulation_get_neighbor_cell(sim, pos, (Direction) (1 + random_generator_generate(&sim->random_generator, 4)));
     }
     return simulation_get_cell(sim, pos);
+}
+
+void 
+simulation_set_ant_position(Simulation *sim, Ant *ant, Position new_pos)
+{
+    Cell *old_cell = simulation_get_cell(sim, ant->position);
+    assert(old_cell->nb_ants > 0);
+    old_cell->nb_ants--;
+    ant->position = new_pos;
+    simulation_get_cell(sim, new_pos)->nb_ants++;
 }

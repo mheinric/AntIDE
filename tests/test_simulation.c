@@ -21,23 +21,6 @@ test_simulation_init(void)
     }
 }
 
-void 
-test_simulation_single_step_move(void)
-{
-    Program prog; 
-    program_init(&prog);
-    // MOVE NORTH
-    program_push_instruction(&prog, instruction_create_move(argument_create_value(1)));
-    Simulation sim; 
-    simulation_init(&sim, simulation_settings_create_test(), prog);
-    Position start_pos = sim.ants[0].position;
-    simulation_run_step(&sim);
-    Position end_pos = sim.ants[0].position;
-    TEST_ASSERT_EQUAL_INT32(1, sim.ants[0].pc);
-    TEST_ASSERT_EQUAL_UINT64(start_pos.x, end_pos.x);
-    TEST_ASSERT_EQUAL_UINT64(start_pos.y + 1, end_pos.y);
-}
-
 Simulation
 create_test_sim(const char* program)
 {
@@ -52,6 +35,28 @@ create_test_sim(const char* program)
     Simulation sim; 
     simulation_init(&sim, simulation_settings_create_test(), parse_result.program);
     return sim;
+}
+
+void 
+test_simulation_move(void)
+{
+    // Ants can move but not through walls
+    Simulation sim = create_test_sim(
+        "MOVE NORTH\n" // Ant will move here
+        "MOVE NORTH\n" // Ant will be blocked by wall here
+    );
+    Position start_pos = sim.ants[0].position;
+    Position wall_pos = start_pos; 
+    wall_pos.y += 2;
+    simulation_get_cell(&sim, wall_pos)->type = CELL_TYPE_WALL;
+    simulation_run_step(&sim);
+    TEST_ASSERT_EQUAL_INT32(1, sim.ants[0].pc);
+    TEST_ASSERT_EQUAL_UINT64(start_pos.x, sim.ants[0].position.x);
+    TEST_ASSERT_EQUAL_UINT64(start_pos.y + 1, sim.ants[0].position.y);
+    simulation_run_step(&sim);
+    TEST_ASSERT_EQUAL_INT32(2, sim.ants[0].pc);
+    TEST_ASSERT_EQUAL_UINT64(start_pos.x, sim.ants[0].position.x);
+    TEST_ASSERT_EQUAL_UINT64(start_pos.y + 1, sim.ants[0].position.y); // Ant has not moved because of wall
 }
 
 void 
@@ -89,6 +94,28 @@ test_simulation_drop_overflow(void)
     sim.ants->carrying_food = true; 
     simulation_run_step(&sim);
     TEST_ASSERT_EQUAL(8, cell->food_amount);
+    TEST_ASSERT_FALSE(sim.ants[0].carrying_food);
+}
+
+void 
+test_simulation_drop_nest(void)
+{
+    // When dropping food on a nest cell, the amount of food on the cell does not increase, but 
+    // instead the score is increased by 1.
+    Simulation sim = create_test_sim(
+        "MOVE NORTH\n"
+        "PICKUP\n"
+        "MOVE SOUTH\n"
+        "DROP\n"
+    );
+    Position pos = sim.ants[0].position;
+    simulation_get_cell(&sim, pos)->type = CELL_TYPE_NEST;
+    simulation_get_neighbor_cell(&sim, pos, DIR_NORTH)->food_amount = 1;
+    for (int i = 0; i < 4; i++)
+    {
+        simulation_run_step(&sim);
+    }
+    TEST_ASSERT_EQUAL(1, sim.score);
     TEST_ASSERT_FALSE(sim.ants[0].carrying_food);
 }
 
@@ -350,12 +377,86 @@ test_simulation_sniff_smell(void)
     TEST_ASSERT_EQUAL_UINT32(DIR_EAST, sim.ants[0].registers[2]);
 }
 
+void 
+test_simulation_probe(void)
+{
+    const char* program = 
+        "PROBE NORTH r0\n"
+        "PROBE EAST r1\n"
+        "PROBE SOUTH r2\n"
+        "PROBE WEST r3\n"
+    ;
+    Simulation sim = create_test_sim(program);
+    Position pos = sim.ants[0].position;
+    simulation_get_neighbor_cell(&sim, pos, DIR_NORTH)->food_amount = 1;
+    simulation_get_neighbor_cell(&sim, pos, DIR_EAST)->type = CELL_TYPE_WALL;
+    simulation_get_neighbor_cell(&sim, pos, DIR_SOUTH)->type = CELL_TYPE_NEST;
+    simulation_run_step(&sim);
+    TEST_ASSERT_EQUAL_UINT32(ENT_FOOD, sim.ants[0].registers[0]);
+    TEST_ASSERT_EQUAL_UINT32(ENT_WALL, sim.ants[0].registers[1]);
+    TEST_ASSERT_EQUAL_UINT32(ENT_NEST, sim.ants[0].registers[2]);
+    TEST_ASSERT_EQUAL_UINT32(ENT_EMPTY, sim.ants[0].registers[3]); 
+}
+
+void 
+test_simulation_sense(void)
+{
+    const char* program = 
+        "SENSE FOOD r0\n"
+        "SENSE WALL r1\n"
+        "SENSE NEST r2\n"
+    ;
+    Simulation sim = create_test_sim(program);
+    Position pos = sim.ants[0].position;
+    simulation_get_neighbor_cell(&sim, pos, DIR_NORTH)->food_amount = 1;
+    simulation_get_neighbor_cell(&sim, pos, DIR_EAST)->type = CELL_TYPE_WALL;
+    simulation_get_neighbor_cell(&sim, pos, DIR_SOUTH)->type = CELL_TYPE_NEST;
+    simulation_run_step(&sim);
+    TEST_ASSERT_EQUAL_UINT32(DIR_NORTH, sim.ants[0].registers[0]);
+    TEST_ASSERT_EQUAL_UINT32(DIR_EAST, sim.ants[0].registers[1]);
+    TEST_ASSERT_EQUAL_UINT32(DIR_SOUTH, sim.ants[0].registers[2]);
+}
+
+void 
+test_simulation_sense_ants(void)
+{
+    Program prog; 
+    program_init(&prog);
+    program_push_instruction(&prog, instruction_create_sense(argument_create_value(ENT_ANT), 0));
+    SimulationSettings settings = simulation_settings_create_test();
+    settings.nb_ants = 2;
+    Simulation sim; 
+    simulation_init(&sim, settings, prog);
+    Position north_pos = sim.ants[0].position;
+    north_pos.y += 1;
+    simulation_set_ant_position(&sim, &sim.ants[1], north_pos);
+    simulation_run_step(&sim);
+    TEST_ASSERT_EQUAL(DIR_NORTH, sim.ants[0].registers[0]);
+    TEST_ASSERT_EQUAL(DIR_SOUTH, sim.ants[1].registers[0]);
+}
+
+void 
+test_simulation_tags(void)
+{
+    const char* program = 
+        "main:\n"
+        "TAG 5\n"
+        "ADD r0 1\n"
+        "JMP main\n"
+    ;
+    Simulation sim = create_test_sim(program);
+    simulation_run_step(&sim);
+    TEST_ASSERT_EQUAL_UINT8(5, sim.ants[0].tag);
+    // since TAG has no cost, each loop contains 2 'real' instructions, and runs 32 times per step.
+    TEST_ASSERT_EQUAL_INT32(32, sim.ants[0].registers[0]);
+}
+
 int 
 run_all_simulation_tests(void) 
 {
     UNITY_BEGIN();
     RUN_TEST(test_simulation_init);
-    RUN_TEST(test_simulation_single_step_move);
+    RUN_TEST(test_simulation_move);
     RUN_TEST(test_simulation_pickup_drop);
     RUN_TEST(test_simulation_drop_overflow);
     RUN_TEST(test_simulation_arithmetic);
@@ -367,5 +468,9 @@ run_all_simulation_tests(void)
     RUN_TEST(test_simulation_carrying);
     RUN_TEST(test_simulation_mark);
     RUN_TEST(test_simulation_sniff_smell);
+    RUN_TEST(test_simulation_probe);
+    RUN_TEST(test_simulation_sense);
+    RUN_TEST(test_simulation_sense_ants);
+    RUN_TEST(test_simulation_tags);
     return UNITY_END();
 }

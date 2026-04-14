@@ -18,7 +18,11 @@ typedef struct {
     Position position;
     uint8_t pheromones[4];
     uint8_t food_amount;
+    size_t nb_ants;
 } Cell; 
+
+bool
+cell_matches_entity(Cell *cell, EntityType entity_type);
 
 typedef struct {
     int32_t id;
@@ -27,6 +31,7 @@ typedef struct {
     Position position;
     bool carrying_food;
     uint8_t instruction_budget;
+    uint8_t tag;
 } Ant;
 
 int32_t 
@@ -63,6 +68,7 @@ typedef struct {
     Program program;
     size_t width; 
     size_t height;
+    size_t score;
     RandomGenerator random_generator;
 } Simulation;
 
@@ -77,3 +83,6 @@ simulation_get_cell(Simulation* sim, Position pos);
 
 Cell* 
 simulation_get_neighbor_cell(Simulation* sim, Position pos, Direction dir);
+
+void
+simulation_set_ant_position(Simulation *sim, Ant *ant, Position new_pos);

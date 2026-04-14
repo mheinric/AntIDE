@@ -24,6 +24,17 @@ bool
 channel_is_valid(int32_t channel_value);
 
 typedef enum {
+    ENT_EMPTY = 0,
+    ENT_WALL  = 1,
+    ENT_FOOD  = 2,
+    ENT_NEST  = 3,
+    ENT_ANT   = 4,
+} EntityType;
+
+bool 
+entity_type_is_valid(int32_t entity_type);
+
+typedef enum {
     //Action instructions
     INST_PICKUP,
     INST_DROP,
@@ -57,6 +68,11 @@ typedef enum {
     INST_CARRY,
     INST_SNIFF,
     INST_SMELL,
+    INST_PROBE,
+    INST_SENSE,
+
+    //Debug
+    INST_TAG,
 } InstructionType;
 
 typedef struct {
@@ -90,6 +106,9 @@ typedef struct {
         struct { Argument channel; Argument amount; } mark_args;
         struct { Argument channel; Argument direction; uint8_t target_reg; } sniff_args;
         struct { Argument channel; uint8_t target_reg; } smell_args;
+        struct { Argument direction; uint8_t target_reg; } probe_args;
+        struct { Argument type; uint8_t target_reg; } sense_args;
+        struct { Argument value; } tag_args;
     };
 } Instruction;
 
@@ -119,6 +138,15 @@ instruction_create_sniff(Argument channel, Argument direction, uint8_t target_re
 
 Instruction
 instruction_create_smell(Argument channel, uint8_t target_reg);
+
+Instruction
+instruction_create_probe(Argument direction, uint8_t target_reg);
+
+Instruction 
+instruction_create_sense(Argument sense_type, uint8_t target_reg);
+
+Instruction 
+instruction_create_tag(Argument tag_value);
 
 bool 
 instruction_equal(Instruction first, Instruction second);
