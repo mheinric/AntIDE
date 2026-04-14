@@ -246,7 +246,8 @@ parser_skip_line(Parser *parser) {
     }
 }
 
-Token parser_read_token(Parser *parser)
+Token 
+parser_read_token(Parser *parser)
 {
     parser_skip_whitespace(parser);
     if (parser_has_line_ended(parser)) {
@@ -278,7 +279,8 @@ parser_verify_nb_arguments(Parser *parser, unsigned expected, unsigned actual)
     return false;
 }
 
-bool parser_get_digit_value(char c, int32_t *digit_value, int32_t base)
+bool 
+parser_get_digit_value(char c, int32_t *digit_value, int32_t base)
 {
     if (isdigit(c))
     {
@@ -686,8 +688,76 @@ read_instruction_from_tokens(
 }
 
 bool 
+parser_read_directive(Parser* parser)
+{
+    bool ok = true;
+    assert(*parser->current_position == '.');
+    parser_advance(parser);
+    Token directive_token = parser_read_token(parser);
+    Token arg1 = parser_read_token(parser);
+    Token arg2 = parser_read_token(parser);
+    if (token_is_null(&directive_token) || token_is_null(&arg1) || token_is_null(&arg2))
+    {
+        parser_push_error(parser, "Syntax error");
+        ok = false; 
+        goto end;
+    }
+    if (token_matches_str(&directive_token, "const") || token_matches_str(&directive_token, "alias"))
+    {
+        bool is_alias = token_matches_str(&directive_token, "alias");
+        Argument parsed_arg;
+        if (!parser_read_argument(parser, &arg2, &parsed_arg) ||
+            parsed_arg.is_register != is_alias)
+        {
+            parser_push_error(parser, "Invalid argument for const/alias directive");
+            ok = false; 
+            goto end;
+        }
+        ConstantEntry entry; 
+        entry.name = arg1; 
+        entry.value = parsed_arg;
+        vector_constant_entry_push(&parser->constants, entry);
+    }
+    else if (token_matches_str(&directive_token, "tag"))
+    {
+        Argument parsed_arg;
+        if (!parser_read_argument(parser, &arg1, &parsed_arg) || parsed_arg.is_register)
+        {
+            parser_push_error(parser, "Invalid argument for tag directive");
+            ok = false; 
+            goto end;
+        }
+        ConstantEntry entry; 
+        entry.name = arg2; 
+        entry.value = parsed_arg;
+        vector_constant_entry_push(&parser->constants, entry);
+    }
+    else
+    {
+        parser_push_error(parser, "Unknown directive");
+        ok = false; 
+        goto end;
+    }
+    parser_skip_whitespace(parser);
+    if (!parser_has_line_ended(parser) && *parser->current_position != ';')
+    {
+        parser_push_error(parser, "Too many arguments in directive");
+        ok = false; 
+        goto end;
+    }
+end:
+    parser_skip_line(parser);
+    return ok;
+}
+
+bool 
 parser_read_tokens_from_line(Parser *parser)
 {
+    parser_skip_whitespace(parser);
+    if (*parser->current_position == '.')
+    {
+        return parser_read_directive(parser);
+    }
     TokenLine token_line;
     token_line_init(&token_line, parser->current_line);
 
@@ -786,7 +856,8 @@ parse_read_file(const char* file_name) {
 }
 
 
-ParseResult parse_program_from_file(const char *file_path)
+ParseResult 
+parse_program_from_file(const char *file_path)
 {
     char* content = parse_read_file(file_path);
     if (content == NULL)

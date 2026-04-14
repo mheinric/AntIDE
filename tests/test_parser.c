@@ -286,6 +286,32 @@ test_parse_call(void)
     ));
 }
 
+void
+test_parse_directives(void)
+{
+    const char* program = 
+        ".const TEST 55\n"
+        ".alias test_reg r0\n"
+        ".tag 1 my_tag\n"
+        "SET test_reg TEST\n"
+        "TAG my_tag\n"
+    ;
+    Instruction expected_inst[] = {
+        instruction_create_arithmetic(INST_SET, 0, argument_create_value(55)),
+        instruction_create_tag(argument_create_value(1)),
+    };
+
+    const size_t expected_nb_instructions = sizeof(expected_inst) / sizeof(expected_inst[0]);
+    ParseResult result = parse_program_from_string(program);
+    TEST_ASSERT_NO_ERRORS(&result);
+    TEST_ASSERT_EQUAL_size_t(expected_nb_instructions, program_size(&result.program));
+    for (size_t i = 0; i < expected_nb_instructions; i++)
+    {
+        TEST_ASSERT_TRUE(instruction_equal(expected_inst[i], result.program.instructions.begin[i]));
+    }
+
+}
+
 int 
 run_all_parser_tests(void) {
     UNITY_BEGIN();
@@ -299,5 +325,7 @@ run_all_parser_tests(void) {
     RUN_TEST(test_parse_invalid_instruction);
     RUN_TEST(test_parse_multiple_instructions);
     RUN_TEST(test_parse_conditional_jumps);
+    RUN_TEST(test_parse_call);
+    RUN_TEST(test_parse_directives);
     return UNITY_END();
 }
