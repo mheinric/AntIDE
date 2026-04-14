@@ -9,13 +9,15 @@ typedef struct {
 
 typedef enum {
     CELL_TYPE_EMPTY = 0,
-    CELL_TYPE_FOOD,
+    CELL_TYPE_WALL,
+    CELL_TYPE_NEST,
 } CellType;
 
 typedef struct {
     CellType type;
     Position position;
     uint8_t pheromones[4];
+    uint8_t food_amount;
 } Cell; 
 
 typedef struct {

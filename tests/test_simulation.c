@@ -63,18 +63,33 @@ test_simulation_pickup_drop(void)
     );
     Position pos = sim.ants[0].position;
     Cell* cell = simulation_get_cell(&sim, pos);
-    cell->type = CELL_TYPE_FOOD;
+    cell->food_amount = 1;
     simulation_run_step(&sim); 
-    CellType cell_type_step1 = cell->type;
+    uint8_t food_amount_step1 = cell->food_amount;
     bool carrying_step1 = sim.ants[0].carrying_food; 
     simulation_run_step(&sim); 
-    CellType cell_type_step2 = cell->type;
+    uint8_t food_amount_step2 = cell->food_amount;
     bool carrying_step2 = sim.ants[0].carrying_food;
 
-    TEST_ASSERT_EQUAL(CELL_TYPE_EMPTY, cell_type_step1);
+    TEST_ASSERT_EQUAL(0, food_amount_step1);
     TEST_ASSERT_TRUE(carrying_step1);
-    TEST_ASSERT_EQUAL(CELL_TYPE_FOOD, cell_type_step2);
+    TEST_ASSERT_EQUAL(1, food_amount_step2);
     TEST_ASSERT_FALSE(carrying_step2);
+}
+
+void 
+test_simulation_drop_overflow(void)
+{
+    //There cannot be more than 8 food on a cell. 
+    //Any additional amount dropped on it is lost.
+    Simulation sim = create_test_sim("DROP");
+    Position pos = sim.ants[0].position;
+    Cell* cell = simulation_get_cell(&sim, pos);
+    cell->food_amount = 8;
+    sim.ants->carrying_food = true; 
+    simulation_run_step(&sim);
+    TEST_ASSERT_EQUAL(8, cell->food_amount);
+    TEST_ASSERT_FALSE(sim.ants[0].carrying_food);
 }
 
 void
@@ -323,7 +338,7 @@ test_simulation_sniff_smell(void)
         "SNIFF CH_RED HERE r1\n"
     ;
     Simulation sim = create_test_sim(program);
-    Position pos = sim.ants[CH_RED].position;
+    Position pos = sim.ants[0].position;
     Cell* north_cell = simulation_get_neighbor_cell(&sim, pos, DIR_NORTH);
     north_cell->pheromones[CH_RED] = 200;
     Cell* east_cell = simulation_get_neighbor_cell(&sim, pos, DIR_EAST);
@@ -342,6 +357,7 @@ run_all_simulation_tests(void)
     RUN_TEST(test_simulation_init);
     RUN_TEST(test_simulation_single_step_move);
     RUN_TEST(test_simulation_pickup_drop);
+    RUN_TEST(test_simulation_drop_overflow);
     RUN_TEST(test_simulation_arithmetic);
     RUN_TEST(test_simulation_random_instruction);
     RUN_TEST(test_simulation_loop);

@@ -86,12 +86,12 @@ void simulation_ant_run_single_instruction(Simulation *sim, Ant *ant, Instructio
         case INST_PICKUP: 
         {
             Cell* cell = simulation_get_cell(sim, ant->position);
-            if (ant->carrying_food || cell->type != CELL_TYPE_FOOD)
+            if (ant->carrying_food || cell->food_amount == 0)
             {
                 //Nothing to do
                 break;
             }
-            cell->type = CELL_TYPE_EMPTY; 
+            cell->food_amount--; 
             ant->carrying_food = true;
             break;
         }
@@ -102,7 +102,11 @@ void simulation_ant_run_single_instruction(Simulation *sim, Ant *ant, Instructio
                 break;
             }
             Cell* cell = simulation_get_cell(sim, ant->position);
-            cell->type = CELL_TYPE_FOOD;
+            cell->food_amount += 1;
+            if (cell->food_amount > 8)
+            {
+                cell->food_amount = 8;
+            }
             ant->carrying_food = false;
             break;
         }
