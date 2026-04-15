@@ -38,16 +38,6 @@ int32_t
 ant_get_arg_value(Ant *ant, Argument arg);
 
 typedef struct {
-    uint64_t state;
-} RandomGenerator;
-
-void
-random_generator_init(RandomGenerator *rand, uint64_t seed);
-
-int32_t 
-random_generator_generate(RandomGenerator *rand, int32_t max_bound);
-
-typedef struct {
     size_t random_seed; 
     size_t width; 
     size_t height;
@@ -60,29 +50,32 @@ simulation_settings_create_default(size_t random_seed);
 SimulationSettings
 simulation_settings_create_test();
 
-typedef struct {
-    SimulationSettings settings;
-    size_t step_number;
-    Ant* ants;
-    Cell* cells;
-    Program program;
-    size_t width; 
-    size_t height;
-    size_t score;
-    RandomGenerator random_generator;
-} Simulation;
+struct Simulation; 
+typedef struct Simulation Simulation;
 
-void
-simulation_init(Simulation *sim, SimulationSettings settings, Program prog);
+Simulation*
+simulation_create(SimulationSettings settings, Program prog);
+
+void 
+simulation_delete(Simulation *sim);
 
 void
 simulation_run_step(Simulation *sim);
+
+size_t 
+simulation_get_step_number(Simulation* sim);
+
+size_t 
+simulation_get_score(Simulation* sim);
 
 Cell* 
 simulation_get_cell(Simulation* sim, Position pos);
 
 Cell* 
 simulation_get_neighbor_cell(Simulation* sim, Position pos, Direction dir);
+
+Ant* 
+simulation_get_ant(Simulation *sim, int32_t id);
 
 void
 simulation_set_ant_position(Simulation *sim, Ant *ant, Position new_pos);

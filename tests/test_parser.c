@@ -284,6 +284,7 @@ test_parse_call(void)
         instruction_create_call(0, argument_create_register(1)),
         result.program.instructions.begin[0]
     ));
+    parse_result_cleanup(&result);
 }
 
 void
@@ -309,7 +310,7 @@ test_parse_directives(void)
     {
         TEST_ASSERT_TRUE(instruction_equal(expected_inst[i], result.program.instructions.begin[i]));
     }
-
+    parse_result_cleanup(&result);
 }
 
 int 

@@ -5,9 +5,7 @@
 #include "utils.h"
 
 #ifndef VECTOR_ITEM_TYPE
-#warning "vector.h: VECTOR_ITEM_TYPE was not defined before including this file, assuming int"
-#define VECTOR_ITEM_TYPE int
-#define VECTOR_ITEM_NAME int
+#error "vector.h: VECTOR_ITEM_TYPE was not defined before including this file"
 #endif
 
 #ifndef VECTOR_ITEM_NAME

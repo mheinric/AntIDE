@@ -1,3 +1,4 @@
+#include "simulation_private.h"
 #include "simulation.h"
 
 bool 
@@ -32,6 +33,10 @@ void random_generator_init(RandomGenerator *rand, uint64_t seed)
     rand->state = seed;
 }
 
+void random_generator_cleanup(RandomGenerator */*rand*/)
+{
+}
+
 int32_t random_generator_generate(RandomGenerator *rand, int32_t max_bound)
 {
     assert(max_bound != 0);
@@ -62,8 +67,10 @@ SimulationSettings simulation_settings_create_test()
     };
 }
 
-void simulation_init(Simulation *sim, SimulationSettings settings, Program prog)
+Simulation* 
+simulation_create(SimulationSettings settings, Program prog)
 {
+    Simulation* sim = calloc(1, sizeof(Simulation));
     sim->settings = settings;
     sim->step_number = 0;
     sim->ants = calloc(settings.nb_ants, sizeof(Ant));
@@ -88,6 +95,17 @@ void simulation_init(Simulation *sim, SimulationSettings settings, Program prog)
     simulation_get_cell(sim, default_pos)->nb_ants = settings.nb_ants;
     sim->score = 0;
     random_generator_init(&sim->random_generator, settings.random_seed);
+    return sim;
+}
+
+void simulation_delete(Simulation *sim)
+{
+    assert(sim != NULL);
+    program_cleanup(&sim->program);
+    random_generator_cleanup(&sim->random_generator);
+    free(sim->cells);
+    free(sim->ants);
+    free(sim);
 }
 
 void simulation_ant_run_single_instruction(Simulation *sim, Ant *ant, Instruction inst)
@@ -425,9 +443,7 @@ simulation_ant_run_step(Simulation *sim, Ant *ant)
     }
 }
 
-
-void 
-simulation_run_step(Simulation *sim)
+void simulation_run_step(Simulation *sim)
 {
     sim->step_number++;
     // Decay the pheromones
@@ -448,6 +464,17 @@ simulation_run_step(Simulation *sim)
         sim->ants[i].instruction_budget = 64;
         simulation_ant_run_step(sim, &sim->ants[i]);
     }
+}
+
+size_t 
+simulation_get_step_number(Simulation *sim)
+{
+    return sim->step_number;
+}
+
+size_t simulation_get_score(Simulation *sim)
+{
+    return sim->score;
 }
 
 Cell*
@@ -475,8 +502,12 @@ simulation_get_neighbor_cell(Simulation *sim, Position pos, Direction dir)
     return simulation_get_cell(sim, pos);
 }
 
-void 
-simulation_set_ant_position(Simulation *sim, Ant *ant, Position new_pos)
+Ant *simulation_get_ant(Simulation *sim, int32_t id)
+{
+    return &sim->ants[id];
+}
+
+void simulation_set_ant_position(Simulation *sim, Ant *ant, Position new_pos)
 {
     Cell *old_cell = simulation_get_cell(sim, ant->position);
     assert(old_cell->nb_ants > 0);

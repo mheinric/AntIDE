@@ -153,7 +153,7 @@ instruction_equal(Instruction first, Instruction second);
 
 #define VECTOR_ITEM_TYPE Instruction 
 #define VECTOR_ITEM_NAME instruction
-#include "vector.h"
+#include "internals/vector.h"
 
 typedef struct {
     VectorInstruction instructions;

@@ -1,4 +1,4 @@
-#include "parser.h"
+#include "parser_private.h"
 
 void 
 parse_result_init(ParseResult *parse_result)
@@ -42,16 +42,6 @@ parse_result_print_errors(const ParseResult *parse_result)
     }
 
 }
-
-typedef struct {
-    const char* begin; 
-    const char* end;
-} Token;
-
-static const Token NULL_TOKEN = {
-    .begin = NULL,
-    .end = NULL
-};
 
 void 
 token_init(Token* token, const char* begin, const char* end)
@@ -107,23 +97,6 @@ token_matches_str(const Token *token, const char *str)
     return token_equal(token, &second);
 }
 
-typedef struct {
-    Token name;
-    Argument value; 
-} ConstantEntry;
-
-#define VECTOR_ITEM_TYPE ConstantEntry
-#define VECTOR_ITEM_NAME constant_entry
-#include "vector.h"
-
-enum { PARSER_MAX_TOKE_PER_LINE = 5 };
-
-typedef struct {
-    Token tokens[PARSER_MAX_TOKE_PER_LINE]; 
-    int nb_tokens;
-    size_t line_number;
-} TokenLine;
-
 void
 token_line_init(TokenLine* token_line, size_t line_number)
 {
@@ -135,21 +108,6 @@ token_line_init(TokenLine* token_line, size_t line_number)
     token_line->nb_tokens = 0; 
     token_line->line_number = line_number;
 }
-
-#define VECTOR_ITEM_TYPE TokenLine
-#define VECTOR_ITEM_NAME token_line
-#include "vector.h"
-
-typedef struct {
-    const char* content;
-    const char* current_position;
-    size_t current_line;
-    // Intermediate data structure for storing stuff between phase 1 and phase 2 of the parser
-    VectorConstantEntry constants;
-    VectorTokenLine token_lines; 
-    //The final result that this parser produces.
-    ParseResult parse_result;
-} Parser;
 
 const struct { const char* key; Argument value; } parser_builtin_constants[] = {
     { .key = "r0",        .value = { .is_register = true, .register_index = 0 } },
@@ -209,6 +167,7 @@ parser_cleanup(Parser* parser)
 void
 parser_advance(Parser *parser)
 {
+    assert(*parser->current_position != '\0');
     parser->current_position++;
 }
 
