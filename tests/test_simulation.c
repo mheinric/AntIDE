@@ -484,6 +484,7 @@ run_all_simulation_tests(void)
     RUN_TEST(test_simulation_move);
     RUN_TEST(test_simulation_pickup_drop);
     RUN_TEST(test_simulation_drop_overflow);
+    RUN_TEST(test_simulation_drop_nest);
     RUN_TEST(test_simulation_arithmetic);
     RUN_TEST(test_simulation_random_instruction);
     RUN_TEST(test_simulation_loop);

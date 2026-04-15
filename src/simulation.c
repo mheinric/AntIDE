@@ -87,8 +87,13 @@ simulation_create(SimulationSettings settings, Program prog)
     {
         for (size_t x = 0; x < sim->width; x++)
         {
-            sim->cells[sim->width * y + x].position.x = x;
-            sim->cells[sim->width * y + x].position.y = x;
+            Position pos = { .x = x, .y = y };
+            simulation_get_cell(sim, pos)->position = pos;
+            if (x == 0 || y == 0 || x == sim->width - 1 || y == sim->height - 1)
+            {
+                //Put walls on all the borders of the map.
+                simulation_get_cell(sim, pos)->type = CELL_TYPE_WALL; 
+            }
         }
     }
     simulation_get_cell(sim, default_pos)->nb_ants = settings.nb_ants;
@@ -143,11 +148,23 @@ void simulation_ant_run_single_instruction(Simulation *sim, Ant *ant, Instructio
                 break;
             }
             Cell* cell = simulation_get_cell(sim, ant->position);
-            cell->food_amount += 1;
-            if (cell->food_amount > 8)
+            if (cell->type == CELL_TYPE_EMPTY)
             {
-                cell->food_amount = 8;
+                cell->food_amount += 1;
+                if (cell->food_amount > 8)
+                {
+                    cell->food_amount = 8;
+                }
             }
+            else if (cell->type == CELL_TYPE_NEST)
+            {
+                sim->score += 1;
+            }
+            else
+            {
+                assert(false);
+            }
+
             ant->carrying_food = false;
             break;
         }

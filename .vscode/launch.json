@@ -30,11 +30,11 @@
             "preLaunchTask": "Build test executable"
         },
         {
-            "name": "antide check",
+            "name": "antide run",
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/bin/antide",
-            "args": ["check", "tests/sample_programs/simple.aasm"],
+            "args": ["run", "tests/sample_programs/simple.aasm"],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
             "environment": [],

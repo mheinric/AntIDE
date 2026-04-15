@@ -1,10 +1,12 @@
 #include "utils.h"
 #include "parser.h"
+#include "simulation_private.h" //Necessary for RandomGenerator
 
 void print_usage()
 {
     fprintf(stderr, "Usage:\n");
     fprintf(stderr, "antide check <filename>\n");
+    fprintf(stderr, "antide run <filename>\n");
 }
 
 int 
@@ -16,8 +18,9 @@ main(int argc, char** argv)
         print_usage(); 
         return 1;
     }
-
-    if (strcmp(argv[1], "check") != 0)
+    bool is_check = strcmp(argv[1], "check") == 0;
+    bool is_run = strcmp(argv[1], "run") == 0;
+    if (!is_check && !is_run)
     {
         fprintf(stderr, "antide: Unexpected command\n");
         print_usage(); 
@@ -34,7 +37,48 @@ main(int argc, char** argv)
     }
     else
     {
-        printf("File OK\n");
+        if (is_run)
+        {
+            Program prog; 
+            program_init_move(&prog, &result.program);
+            SimulationSettings settings = simulation_settings_create_default(42);
+            Simulation* sim = simulation_create(settings, prog);
+            Position start_pos = simulation_get_ant(sim, 0)->position;
+            for (int i = -1; i < 2; i++)
+            {
+                for (int j = -1; j < 2; j++)
+                {
+                    Position nest_pos = { .x = start_pos.x + i, .y = start_pos.y + j };
+                    simulation_get_cell(sim, nest_pos)->type = CELL_TYPE_NEST;
+                }
+            }
+
+            RandomGenerator rand;
+            random_generator_init(&rand, 42); 
+            size_t total_food_amount = 0;
+            for (int i = 0; i < 1000; i++)
+            {
+                Position pos = { 
+                    .x = random_generator_generate(&rand, settings.width), 
+                    .y = random_generator_generate(&rand, settings.height)
+                };
+                Cell *cell = simulation_get_cell(sim, pos);
+                if (cell->type == CELL_TYPE_EMPTY && cell->food_amount < 8)
+                {
+                    cell->food_amount++; 
+                    total_food_amount++;
+                }
+            }
+            for (int i = 0; i < 2000; i++)
+            {
+                simulation_run_step(sim);
+            }
+            printf("Score: %zd/%zd\n", simulation_get_score(sim), total_food_amount);
+        }
+        else
+        {
+            printf("File OK\n");
+        }
     }
     parse_result_cleanup(&result);
     return status;

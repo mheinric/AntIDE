@@ -639,7 +639,7 @@ read_instruction_from_tokens(
             return;
         } 
         Argument entity_type;
-        uint8_t target_register; 
+        uint8_t target_register = 0; 
         if (!parser_read_argument(parser, &tokens[1], &entity_type) ||
             (nb_token == 3 && !parser_read_register(parser, &tokens[2], &target_register)))
         {
