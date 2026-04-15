@@ -244,13 +244,13 @@ parser_read_token(Parser *parser)
 }
 
 bool 
-parser_verify_nb_arguments(Parser *parser, unsigned expected, unsigned actual)
+parser_verify_nb_arguments(Parser *parser, unsigned minimum, unsigned maximum, unsigned actual)
 {
-    if (expected == actual)
+    if (actual >= minimum && actual <= maximum)
     {
         return true;
     }
-    parser_push_error(parser, expected > actual ? "Missing argument(s)" : "Too many arguments");
+    parser_push_error(parser, minimum > actual ? "Missing argument(s)" : "Too many arguments");
     return false;
 }
 
@@ -375,7 +375,7 @@ parser_read_artihmetic_instruction(
     const Token *tokens, 
     unsigned nb_token)
 {
-    if (!parser_verify_nb_arguments(parser, 3, nb_token))
+    if (!parser_verify_nb_arguments(parser, 3, 3, nb_token))
     {
         return;
     }
@@ -395,7 +395,7 @@ parser_read_conditional_jump_instruction(
     const Token *tokens, 
     unsigned nb_token)
 {
-    if (!parser_verify_nb_arguments(parser, 4, nb_token))
+    if (!parser_verify_nb_arguments(parser, 4, 4, nb_token))
     {
         return;
     }
@@ -415,12 +415,16 @@ parser_read_info_instruction(Parser *parser,
     const Token *tokens, 
     unsigned nb_token)
 {
-    if (!parser_verify_nb_arguments(parser, 2, nb_token))
+    if (!parser_verify_nb_arguments(parser, 1, 2, nb_token))
     {
         return;
     }
     uint8_t target_register; 
-    if (!parser_read_register(parser, &tokens[1], &target_register))
+    if (nb_token == 1)
+    {
+        target_register = 0;
+    }
+    else if (!parser_read_register(parser, &tokens[1], &target_register))
     {
         return; 
     }
@@ -437,7 +441,7 @@ read_instruction_from_tokens(
     parser->current_line = token_line->line_number;
     if (token_matches_str(&tokens[0], "PICKUP")) 
     {
-        if (!parser_verify_nb_arguments(parser, 1, nb_token))
+        if (!parser_verify_nb_arguments(parser, 1, 1, nb_token))
         {
             return;
         }
@@ -447,7 +451,7 @@ read_instruction_from_tokens(
     }
     else if (token_matches_str(&tokens[0], "DROP"))
     {
-        if (!parser_verify_nb_arguments(parser, 1, nb_token))
+        if (!parser_verify_nb_arguments(parser, 1, 1, nb_token))
         {
             return;
         }
@@ -457,7 +461,7 @@ read_instruction_from_tokens(
     }
     else if (token_matches_str(&tokens[0], "MOVE"))
     {
-        if (!parser_verify_nb_arguments(parser, 2, nb_token))
+        if (!parser_verify_nb_arguments(parser, 2, 2, nb_token))
         {
             return;
         }
@@ -518,7 +522,7 @@ read_instruction_from_tokens(
     }
     else if (token_matches_str(&tokens[0], "JMP"))
     {
-        if (!parser_verify_nb_arguments(parser, 2, nb_token))
+        if (!parser_verify_nb_arguments(parser, 2, 2, nb_token))
         {
             return;
         }
@@ -547,7 +551,7 @@ read_instruction_from_tokens(
     }
     else if (token_matches_str(&tokens[0], "CALL"))
     {
-        if (!parser_verify_nb_arguments(parser, 3, nb_token))
+        if (!parser_verify_nb_arguments(parser, 3, 3, nb_token))
         {
             return;
         }
@@ -570,7 +574,7 @@ read_instruction_from_tokens(
     }
     else if (token_matches_str(&tokens[0], "MARK"))
     {
-        if (!parser_verify_nb_arguments(parser, 3, nb_token))
+        if (!parser_verify_nb_arguments(parser, 3, 3, nb_token))
         {
             return;
         } 
@@ -584,15 +588,15 @@ read_instruction_from_tokens(
     }
     else if (token_matches_str(&tokens[0], "SNIFF"))
     {
-        if (!parser_verify_nb_arguments(parser, 4, nb_token))
+        if (!parser_verify_nb_arguments(parser, 3, 4, nb_token))
         {
             return;
         } 
         Argument channel, direction;
-        uint8_t target_register; 
+        uint8_t target_register = 0; 
         if (!parser_read_argument(parser, &tokens[1], &channel) ||
             !parser_read_argument(parser, &tokens[2], &direction) || 
-            !parser_read_register(parser, &tokens[3], &target_register))
+            (nb_token == 4 && !parser_read_register(parser, &tokens[3], &target_register)))
         {
             return;
         }
@@ -600,14 +604,14 @@ read_instruction_from_tokens(
     }
     else if (token_matches_str(&tokens[0], "SMELL"))
     {
-        if (!parser_verify_nb_arguments(parser, 3, nb_token))
+        if (!parser_verify_nb_arguments(parser, 2, 3, nb_token))
         {
             return;
         } 
         Argument channel;
-        uint8_t target_register; 
+        uint8_t target_register = 0; 
         if (!parser_read_argument(parser, &tokens[1], &channel) ||
-            !parser_read_register(parser, &tokens[2], &target_register))
+            (nb_token == 3 && !parser_read_register(parser, &tokens[2], &target_register)))
         {
             return;
         }
@@ -615,14 +619,14 @@ read_instruction_from_tokens(
     }
     else if (token_matches_str(&tokens[0], "PROBE"))
     {
-        if (!parser_verify_nb_arguments(parser, 3, nb_token))
+        if (!parser_verify_nb_arguments(parser, 2, 3, nb_token))
         {
             return;
         } 
         Argument direction;
-        uint8_t target_register; 
+        uint8_t target_register = 0; 
         if (!parser_read_argument(parser, &tokens[1], &direction) ||
-            !parser_read_register(parser, &tokens[2], &target_register))
+            (nb_token == 3 && !parser_read_register(parser, &tokens[2], &target_register)))
         {
             return;
         }
@@ -630,14 +634,14 @@ read_instruction_from_tokens(
     }
     else if (token_matches_str(&tokens[0], "SENSE"))
     {
-        if (!parser_verify_nb_arguments(parser, 3, nb_token))
+        if (!parser_verify_nb_arguments(parser, 2, 3, nb_token))
         {
             return;
         } 
         Argument entity_type;
         uint8_t target_register; 
         if (!parser_read_argument(parser, &tokens[1], &entity_type) ||
-            !parser_read_register(parser, &tokens[2], &target_register))
+            (nb_token == 3 && !parser_read_register(parser, &tokens[2], &target_register)))
         {
             return;
         }
@@ -645,7 +649,7 @@ read_instruction_from_tokens(
     }
     else if (token_matches_str(&tokens[0], "TAG"))
     {
-        if (!parser_verify_nb_arguments(parser, 2, nb_token))
+        if (!parser_verify_nb_arguments(parser, 2, 2, nb_token))
         {
             return;
         } 

@@ -91,7 +91,7 @@ Token
 parser_read_token(Parser *parser);
 
 bool 
-parser_verify_nb_arguments(Parser *parser, unsigned expected, unsigned actual);
+parser_verify_nb_arguments(Parser *parser, unsigned minimum, unsigned maximum, unsigned actual);
 
 bool 
 parser_get_digit_value(char c, int32_t *digit_value, int32_t base);
