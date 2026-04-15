@@ -1,3 +1,4 @@
+#include "ast_private.h"
 #include "ast.h"
 
 bool 
@@ -235,29 +236,39 @@ instruction_equal(Instruction first, Instruction second)
 void 
 program_init(Program *program)
 {
-    vector_instruction_init(&program->instructions);
+    program->instructions = calloc(1, sizeof(VectorInstruction));
+    vector_instruction_init(program->instructions);
 }
 
 void 
 program_init_move(Program *target, Program *source)
 {
-    vector_instruction_init_move(&target->instructions, &source->instructions);
+    target->instructions = calloc(1, sizeof(VectorInstruction));
+    vector_instruction_init_move(target->instructions, source->instructions);
 }
 
 void 
 program_cleanup(Program *program)
 {
-    vector_instruction_cleanup(&program->instructions);
+    vector_instruction_cleanup(program->instructions);
+    free(program->instructions);
+    program->instructions = NULL;
 }
 
 uint64_t
 program_size(Program * program)
 {
-    return vector_instruction_size(&program->instructions);
+    return vector_instruction_size(program->instructions);
 }
 
-void
+Instruction 
+program_get_instruction(Program *program, size_t index)
+{
+    return program->instructions->begin[index];
+}
+
+void 
 program_push_instruction(Program *program, Instruction instruction)
 {
-    vector_instruction_push(&program->instructions, instruction);
+    vector_instruction_push(program->instructions, instruction);
 }

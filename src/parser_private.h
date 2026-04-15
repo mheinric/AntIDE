@@ -1,5 +1,9 @@
 #include "parser.h"
 
+#define VECTOR_ITEM_TYPE ParseError
+#define VECTOR_ITEM_NAME parse_error
+#include "internals/vector.h"
+
 typedef struct {
     const char* begin; 
     const char* end;

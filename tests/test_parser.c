@@ -2,7 +2,7 @@
 #include <unity/unity.h>
 
 void TEST_ASSERT_NO_ERRORS(ParseResult *parse_result) {
-    if (vector_parse_error_size(&parse_result->errors) > 0) 
+    if (parse_result_nb_errors(parse_result) > 0) 
     {
         parse_result_print_errors(parse_result);
         TEST_FAIL_MESSAGE("Parse result contains errors");
@@ -34,7 +34,7 @@ test_parse_read_empty_file() {
 void 
 test_parse_read_inexistant_file() {
     ParseResult result = parse_program_from_file("tests/sample_programs/missing-file.asm");
-    TEST_ASSERT_EQUAL_UINT64(1, vector_parse_error_size(&result.errors));
+    TEST_ASSERT_EQUAL_UINT64(1, parse_result_nb_errors(&result));
     TEST_ASSERT_EQUAL_UINT64(0, program_size(&result.program));
     parse_result_cleanup(&result);    
 }
@@ -71,7 +71,7 @@ test_parse_single_instruction_no_arg() {
         ParseResult result = parse_program_from_string(inst_str[i]);
         TEST_ASSERT_NO_ERRORS(&result);
         TEST_ASSERT_EQUAL_UINT64_MESSAGE(1, program_size(&result.program), inst_str[i]);
-        TEST_ASSERT_EQUAL_MESSAGE(inst_type[i], result.program.instructions.begin->type, inst_str[i]);
+        TEST_ASSERT_EQUAL_MESSAGE(inst_type[i], program_get_instruction(&result.program, 0).type, inst_str[i]);
         parse_result_cleanup(&result);
     }
 }
@@ -149,7 +149,7 @@ test_parse_single_instructions() {
         ParseResult result = parse_program_from_string(test_cases[i].inst_string);
         TEST_ASSERT_NO_ERRORS(&result);
         TEST_ASSERT_EQUAL_UINT64_MESSAGE(1, program_size(&result.program), test_cases[i].inst_string);
-        TEST_ASSERT_TRUE_MESSAGE(instruction_equal(test_cases[i].expected_inst, result.program.instructions.begin[0]), test_cases[i].inst_string);
+        TEST_ASSERT_TRUE_MESSAGE(instruction_equal(test_cases[i].expected_inst, program_get_instruction(&result.program, 0)), test_cases[i].inst_string);
         parse_result_cleanup(&result);
     }
 }
@@ -194,7 +194,10 @@ test_parse_single_instruction_arithmetic() {
         ParseResult result = parse_program_from_string(test_instructions[i]);
         TEST_ASSERT_NO_ERRORS(&result);
         TEST_ASSERT_EQUAL_UINT64_MESSAGE(1, program_size(&result.program), test_instructions[i]);
-        TEST_ASSERT_TRUE_MESSAGE(instruction_equal(expected_results[i], result.program.instructions.begin[0]), test_instructions[i]);
+        TEST_ASSERT_TRUE_MESSAGE(instruction_equal(
+                expected_results[i], 
+                program_get_instruction(&result.program, 0)), 
+            test_instructions[i]);
         parse_result_cleanup(&result);
     }
 }
@@ -222,8 +225,8 @@ test_parse_invalid_instruction() {
     for (int i = 0; i < NB_ITEMS; i++)
     {
         ParseResult result = parse_program_from_string(inst_str[i]);
-        TEST_ASSERT_EQUAL_UINT64_MESSAGE(1, vector_parse_error_size(&result.errors), inst_str[i]);
-        TEST_ASSERT_EQUAL_UINT64_MESSAGE(1, result.errors.begin[0].line, inst_str[i]);
+        TEST_ASSERT_EQUAL_UINT64_MESSAGE(1, parse_result_nb_errors(&result), inst_str[i]);
+        TEST_ASSERT_EQUAL_UINT64_MESSAGE(1, parse_result_get_error(&result, 0).line, inst_str[i]);
         TEST_ASSERT_EQUAL_UINT64_MESSAGE(0, program_size(&result.program), inst_str[i]);
         parse_result_cleanup(&result);
     }
@@ -267,7 +270,7 @@ test_parse_conditional_jumps() {
         TEST_ASSERT_NO_ERRORS(&result);
         TEST_ASSERT_EQUAL_UINT64(3, program_size(&result.program));
         TEST_ASSERT_TRUE(instruction_equal(
-            result.program.instructions.begin[1],
+            program_get_instruction(&result.program, 1),
             instruction_create_conditional_jump(test_entries[i].inst_type, argument_create_register(0), argument_create_value(10), argument_create_value(2))
         ));
         parse_result_cleanup(&result);
@@ -282,7 +285,7 @@ test_parse_call(void)
     TEST_ASSERT_EQUAL_UINT64(1, program_size(&result.program));
     TEST_ASSERT_TRUE(instruction_equal(
         instruction_create_call(0, argument_create_register(1)),
-        result.program.instructions.begin[0]
+        program_get_instruction(&result.program, 0)
     ));
     parse_result_cleanup(&result);
 }
@@ -308,7 +311,7 @@ test_parse_directives(void)
     TEST_ASSERT_EQUAL_size_t(expected_nb_instructions, program_size(&result.program));
     for (size_t i = 0; i < expected_nb_instructions; i++)
     {
-        TEST_ASSERT_TRUE(instruction_equal(expected_inst[i], result.program.instructions.begin[i]));
+        TEST_ASSERT_TRUE(instruction_equal(expected_inst[i], program_get_instruction(&result.program, i)));
     }
     parse_result_cleanup(&result);
 }

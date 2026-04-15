@@ -1,35 +1,39 @@
 #include "parser_private.h"
+#include "parser.h"
 
 void 
 parse_result_init(ParseResult *parse_result)
 {
     program_init(&parse_result->program);
-    vector_parse_error_init(&parse_result->errors);
+    parse_result->errors = calloc(1, sizeof(VectorParseError));
+    vector_parse_error_init(parse_result->errors);
 }
 
 void 
 parse_result_init_move(ParseResult *dest, ParseResult *source)
 {
     program_init_move(&dest->program, &source->program);
-    vector_parse_error_init_move(&dest->errors, &source->errors);
+    dest->errors = calloc(1, sizeof(VectorParseError));
+    vector_parse_error_init_move(dest->errors, source->errors);
 }
 
 void 
 parse_result_cleanup(ParseResult *parse_result)
 {
     program_cleanup(&parse_result->program);
-    vector_parse_error_cleanup(&parse_result->errors);
+    vector_parse_error_cleanup(parse_result->errors);
+    free(parse_result->errors);
 }
 
 void 
 parse_result_print_errors(const ParseResult *parse_result)
 {
-    if (vector_parse_error_size(&parse_result->errors) == 0)
+    if (vector_parse_error_size(parse_result->errors) == 0)
     {
         printf("No errors\n"); 
         return;
     }
-    for (const ParseError* it = parse_result->errors.begin; it != parse_result->errors.end; it++)
+    for (const ParseError* it = parse_result->errors->begin; it != parse_result->errors->end; it++)
     {
         if (it->line > 0) 
         {
@@ -43,8 +47,20 @@ parse_result_print_errors(const ParseResult *parse_result)
 
 }
 
+size_t 
+parse_result_nb_errors(const ParseResult *parse_result)
+{
+    return vector_parse_error_size(parse_result->errors);
+}
+
+ParseError 
+parse_result_get_error(const ParseResult *parse_result, size_t index)
+{
+    return parse_result->errors->begin[index];
+}
+
 void 
-token_init(Token* token, const char* begin, const char* end)
+token_init(Token *token, const char *begin, const char *end)
 {
     token->begin = begin; 
     token->end = end;
@@ -177,7 +193,7 @@ parser_push_error(Parser *parser, const char* message)
     ParseError error; 
     error.line = parser->current_line;
     error.message = message; 
-    vector_parse_error_push(&parser->parse_result.errors, error);
+    vector_parse_error_push(parser->parse_result.errors, error);
 }
 
 bool 
@@ -826,7 +842,7 @@ parse_program_from_file(const char *file_path)
         ParseError error; 
         error.line = 0; 
         error.message = "Failed to open file";
-        vector_parse_error_push(&result.errors, error); 
+        vector_parse_error_push(result.errors, error); 
         return result;
     }
     ParseResult result = parse_program_from_string(content);

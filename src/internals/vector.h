@@ -19,7 +19,7 @@
 #define VECTOR_TYPE VECTOR_CAT(Vector, VECTOR_ITEM_TYPE)
 #define VECTOR_FUN(FUN_NAME) VECTOR_CAT(VECTOR_CAT(vector_, VECTOR_ITEM_NAME), VECTOR_CAT(_, FUN_NAME))
 
-typedef struct {
+typedef struct VECTOR_TYPE {
     VECTOR_ITEM_TYPE *begin; 
     VECTOR_ITEM_TYPE *end;
     size_t capacity;

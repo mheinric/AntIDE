@@ -25,14 +25,17 @@ Simulation*
 create_test_sim(const char* program)
 {
     ParseResult parse_result = parse_program_from_string(program);
-    if (vector_parse_error_size(&parse_result.errors) > 0)
+    if (parse_result_nb_errors(&parse_result) > 0)
     {
         printf("Failed to parse the program below:\n%s\n", program); 
         parse_result_print_errors(&parse_result);
         TEST_FAIL();
     }
-    vector_parse_error_cleanup(&parse_result.errors);
-    return simulation_create(simulation_settings_create_test(), parse_result.program);
+    //Moving the program out of parse_result.
+    Program prog; 
+    program_init_move(&prog, &parse_result.program);
+    parse_result_cleanup(&parse_result);
+    return simulation_create(simulation_settings_create_test(), prog);
 }
 
 void 

@@ -7,14 +7,11 @@ typedef struct {
     size_t line;
 } ParseError;
 
-#define VECTOR_ITEM_TYPE ParseError
-#define VECTOR_ITEM_NAME parse_error
-#include "internals/vector.h"
-
+typedef struct VectorParseError VectorParseError;
 
 typedef struct {
     Program program;
-    VectorParseError errors;
+    VectorParseError* errors;
 } ParseResult;
 
 void 
@@ -28,6 +25,12 @@ parse_result_cleanup(ParseResult *parse_result);
 
 void 
 parse_result_print_errors(const ParseResult *parse_result);
+
+size_t 
+parse_result_nb_errors(const ParseResult *parse_result);
+
+ParseError
+parse_result_get_error(const ParseResult *parse_result, size_t index);
 
 ParseResult
 parse_program_from_string(const char *content);

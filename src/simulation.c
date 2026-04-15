@@ -1,5 +1,4 @@
 #include "simulation_private.h"
-#include "simulation.h"
 
 bool 
 cell_matches_entity(Cell *cell, EntityType entity_type)
@@ -436,9 +435,9 @@ void simulation_ant_run_single_instruction(Simulation *sim, Ant *ant, Instructio
 void
 simulation_ant_run_step(Simulation *sim, Ant *ant)
 {
-    while (ant->instruction_budget > 0 && ant->pc >= 0 && (uint32_t) ant->pc < program_size(&sim->program))
+    while (ant->instruction_budget > 0 && ant->pc >= 0 && (size_t) ant->pc < program_size(&sim->program))
     {
-        Instruction inst = sim->program.instructions.begin[ant->pc];
+        Instruction inst = program_get_instruction(&sim->program, (size_t) ant->pc);
         simulation_ant_run_single_instruction(sim, ant, inst);
     }
 }
