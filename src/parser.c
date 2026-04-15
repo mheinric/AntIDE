@@ -198,7 +198,7 @@ parser_push_error(Parser *parser, const char* message)
 
 bool 
 parser_has_line_ended(Parser *parser) {
-    return *parser->current_position == '\0' || *parser->current_position == '\n';
+    return *parser->current_position == '\0' || *parser->current_position == '\n' || *parser->current_position == ';';
 }
 
 void
@@ -210,7 +210,7 @@ parser_skip_whitespace(Parser *parser) {
 
 void
 parser_skip_line(Parser *parser) {
-    while (!parser_has_line_ended(parser))
+    while (!parser_has_line_ended(parser) || *parser->current_position == ';')
     {
         parser_advance(parser);
     }
@@ -714,7 +714,7 @@ parser_read_directive(Parser* parser)
         goto end;
     }
     parser_skip_whitespace(parser);
-    if (!parser_has_line_ended(parser) && *parser->current_position != ';')
+    if (!parser_has_line_ended(parser))
     {
         parser_push_error(parser, "Too many arguments in directive");
         ok = false; 
@@ -759,7 +759,7 @@ parser_read_tokens_from_line(Parser *parser)
             //TODO fail when redefining an existing constant.
             parser_advance(parser); 
             parser_skip_whitespace(parser); 
-            if (!parser_has_line_ended(parser) && *parser->current_position != ';')
+            if (!parser_has_line_ended(parser))
             {
                 parser_push_error(parser, "Syntax error, can't have a command on the same line as a label");
                 parser_skip_line(parser);
@@ -789,12 +789,11 @@ parse_program_from_string(const char *content)
     parser_init(&parser, content); 
 
     //First pass, read from the string input
-    enum { MAX_NB_TOKENS = 5 };
-
     while (*parser.current_position != '\0')
     {
         parser_read_tokens_from_line(&parser);
     }
+    //Second pass parse the tokens into instructions
     for (const TokenLine* it = parser.token_lines.begin; it != parser.token_lines.end; it++)
     {
         read_instruction_from_tokens(&parser, it);

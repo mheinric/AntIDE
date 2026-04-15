@@ -16,7 +16,7 @@ UNITY_SRC = $(UNITY_DIR)/unity.c
 TEST_SRC = $(TEST_DIR)/test_main.c $(TEST_DIR)/test_parser.c $(TEST_DIR)/test_simulation.c
 
 BIN = bin
-EXECUTABLE = $(BIN)/ant_check
+EXECUTABLE = $(BIN)/antide
 TEST_EXECUTABLE = $(BIN)/tests
 
 .PHONY: all clean test test-continuous

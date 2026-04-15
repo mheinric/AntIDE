@@ -19,6 +19,23 @@
 				"isDefault": true
 			},
 			"detail": "compiler: Makefile"
+		},
+		{
+			"type": "process",
+			"label": "Build antide",
+			"command": "/usr/bin/make",
+			"args": [],
+			"options": {
+				"cwd": "${workspaceFolder}"
+			},
+			"problemMatcher": [
+				"$gcc"
+			],
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			},
+			"detail": "compiler: Makefile"
 		}
 	]
 }

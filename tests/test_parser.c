@@ -25,7 +25,7 @@ test_instruction_equality()
 
 void 
 test_parse_read_empty_file() {
-    ParseResult result = parse_program_from_file("tests/sample_programs/empty_file.asm");
+    ParseResult result = parse_program_from_file("tests/sample_programs/empty_file.aasm");
     TEST_ASSERT_NO_ERRORS(&result);
     TEST_ASSERT_EQUAL_UINT64(0, program_size(&result.program));
     parse_result_cleanup(&result);    
@@ -33,7 +33,7 @@ test_parse_read_empty_file() {
 
 void 
 test_parse_read_inexistant_file() {
-    ParseResult result = parse_program_from_file("tests/sample_programs/missing-file.asm");
+    ParseResult result = parse_program_from_file("tests/sample_programs/missing-file.aasm");
     TEST_ASSERT_EQUAL_UINT64(1, parse_result_nb_errors(&result));
     TEST_ASSERT_EQUAL_UINT64(0, program_size(&result.program));
     parse_result_cleanup(&result);    
@@ -41,10 +41,19 @@ test_parse_read_inexistant_file() {
 
 void 
 test_parse_empty_program() {
-    ParseResult result = parse_program_from_string("");
-    TEST_ASSERT_NO_ERRORS(&result);
-    TEST_ASSERT_EQUAL_UINT64(0, program_size(&result.program));
-    parse_result_cleanup(&result);
+    const char* programs[] = {
+        "", 
+        "; only comments here",
+        "\n;comment here\n\n\t ; comments again",
+    };
+
+    for (size_t i = 0; i < ANTIDE_ARRAY_SIZE(programs); i++)
+    {
+        ParseResult result = parse_program_from_string(programs[i]);
+        TEST_ASSERT_NO_ERRORS(&result);
+        TEST_ASSERT_EQUAL_UINT64(0, program_size(&result.program));
+        parse_result_cleanup(&result);
+    }
 }
 
 void 
