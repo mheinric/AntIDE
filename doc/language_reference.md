@@ -1,5 +1,5 @@
 The text below is taken from https://dev.moment.com/swarm
-It is temproarily reproduced here for reference.
+It is temporarily reproduced here for reference.
 
 
  200 ants share one program on a 128x128 grid.
