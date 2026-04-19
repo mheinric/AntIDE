@@ -1,25 +1,45 @@
 #include "utils.h"
 #include "parser.h"
 #include "simulation_private.h" //Necessary for RandomGenerator
+#include "lsp.h"
 
-void print_usage()
+void 
+print_usage(void)
 {
     fprintf(stderr, "Usage:\n");
     fprintf(stderr, "antide check <filename>\n");
     fprintf(stderr, "antide run <filename>\n");
+    fprintf(stderr, "antide lsp\n");
 }
 
 int 
 main(int argc, char** argv)
 {
-    if (argc != 3)
+    if (argc < 2)
     {
-        fprintf(stderr, "antide: Wrong number of arguments\n");
+        fprintf(stderr, "antide: Not enough arguments\n");
         print_usage(); 
         return 1;
     }
+
     bool is_check = strcmp(argv[1], "check") == 0;
     bool is_run = strcmp(argv[1], "run") == 0;
+    bool is_lsp = strcmp(argv[1], "lsp") == 0;
+
+    if (is_lsp)
+    {
+        run_lsp(); 
+        return 0;
+    }
+
+    // For the check and run commands
+    if (argc != 3)
+    {
+        fprintf(stderr, "antide: Not enough arguments\n");
+        print_usage(); 
+        return 1;
+    }
+
     if (!is_check && !is_run)
     {
         fprintf(stderr, "antide: Unexpected command\n");
