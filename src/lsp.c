@@ -1,5 +1,6 @@
 #include "lsp.h"
 #include "utils.h"
+#include "parser.h"
 #include <cJSON/cJSON.h>
 
 static FILE* DEBUG_FILE = NULL; 
@@ -75,11 +76,13 @@ send_packet(cJSON* packet)
 cJSON* 
 handle_initialize(const cJSON* /*params*/)
 {
-    const char* SERVER_INFO = "{ \"name\": \"antlsp\", \"version\" : \"0.1.0\" }";
+    const char* server_info_str = "{ \"name\": \"antlsp\", \"version\" : \"0.1.0\" }";
+    const char* capabilities_str = "{ \"textDocumentSync\": 1 }";
+
     cJSON* resp = cJSON_CreateObject(); 
-    cJSON* server_capablities = cJSON_AddObjectToObject(resp, "capabilities");
-    cJSON_AddBoolToObject(server_capablities, "documentHighlightProvider", true);
-    cJSON* serverInfo = cJSON_Parse(SERVER_INFO);
+    cJSON* server_capablities = cJSON_Parse(capabilities_str);
+    cJSON_AddItemToObject(resp, "capabilities", server_capablities);
+    cJSON* serverInfo = cJSON_Parse(server_info_str);
     cJSON_AddItemToObject(resp, "serverInfo", serverInfo);
     return resp;
 }
@@ -124,6 +127,75 @@ void handle_set_trace_notif(const cJSON* /*params*/)
     //TODO: something
 }
 
+void handle_document_change(const cJSON* params)
+{
+    //Extract the content of the document from the params
+    cJSON* document = cJSON_GetObjectItem(params, "textDocument");
+
+    const char* doc_uri = cJSON_GetStringValue(
+        cJSON_GetObjectItem(document, "uri")
+        );
+
+    const char* document_content = NULL; 
+    if (cJSON_HasObjectItem(document, "text"))
+    {
+        document_content = cJSON_GetStringValue(
+            cJSON_GetObjectItem(document, "text")
+        );
+    }
+    else
+    {
+        document_content = cJSON_GetStringValue(
+            cJSON_GetObjectItem(
+                cJSON_GetArrayItem(
+                    cJSON_GetObjectItem(params,"contentChanges"), 
+                0),
+            "text"));
+    }
+
+    
+    if (document_content == NULL || doc_uri == NULL)
+    {
+        print_debug("Could not extract document content");
+        return; 
+    }
+
+    //Parse the content to get a list of errors.
+    ParseResult result = parse_program_from_string(document_content);
+    
+    //Convert the list of errors into json
+    cJSON* diagnostics = cJSON_CreateArray(); 
+    for (size_t i = 0; i < parse_result_nb_errors(&result); i++)
+    {
+        ParseError err = parse_result_get_error(&result, i);
+        cJSON* diag_object = cJSON_CreateObject(); 
+        cJSON_AddNumberToObject(diag_object, "severity", 1);
+        cJSON_AddStringToObject(diag_object, "message", err.message);
+        cJSON* range_object = cJSON_AddObjectToObject(diag_object, "range");
+        cJSON* start = cJSON_AddObjectToObject(range_object, "start");
+        cJSON* end = cJSON_AddObjectToObject(range_object, "end");
+        cJSON_AddNumberToObject(start, "line", err.line - 1); 
+        cJSON_AddNumberToObject(start, "character", 0); 
+        cJSON_AddNumberToObject(end, "line", err.line); 
+        cJSON_AddNumberToObject(end, "character", 0); 
+        cJSON_AddItemToArray(diagnostics, diag_object);
+    }
+
+    parse_result_cleanup(&result);
+    
+    //Send a new notification with the errors
+    
+    cJSON* notif = cJSON_CreateObject();
+    cJSON* notif_params = cJSON_AddObjectToObject(notif, "params");
+
+    cJSON_AddStringToObject(notif, "method", "textDocument/publishDiagnostics");
+
+    cJSON_AddStringToObject(notif_params, "uri", doc_uri);
+    cJSON_AddItemToObject(notif_params, "diagnostics", diagnostics);
+
+    send_packet(notif);
+}
+
 void
 handle_notification(const char* method, const cJSON* params)
 {
@@ -138,6 +210,12 @@ handle_notification(const char* method, const cJSON* params)
     if (strcmp(method, "$/setTrace") == 0)
     {
         return handle_set_trace_notif(params);
+    }
+    if (strcmp(method, "textDocument/didOpen") == 0 || 
+        strcmp(method, "textDocument/didSave") == 0 || 
+        strcmp(method, "textDocument/didChange") == 0)
+    {
+        return handle_document_change(params);
     }
     print_debug("No handler for notification:");
     print_debug(method);
