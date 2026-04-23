@@ -2,6 +2,7 @@
 #include "parser.h"
 #include "simulation_private.h" //Necessary for RandomGenerator
 #include "lsp.h"
+#include "debugger.h"
 
 void 
 print_usage(void)
@@ -25,10 +26,17 @@ main(int argc, char** argv)
     bool is_check = strcmp(argv[1], "check") == 0;
     bool is_run = strcmp(argv[1], "run") == 0;
     bool is_lsp = strcmp(argv[1], "lsp") == 0;
+    bool is_dbg = strcmp(argv[1], "dbg") == 0;
 
     if (is_lsp)
     {
         run_lsp(); 
+        return 0;
+    }
+
+    if (is_dbg)
+    {
+        run_debugger(); 
         return 0;
     }
 

@@ -1,10 +1,6 @@
-/* --------------------------------------------------------------------------------------------
- * Copyright (c) Microsoft Corporation. All rights reserved.
- * Licensed under the MIT License. See License.txt in the project root for license information.
- * ------------------------------------------------------------------------------------------ */
-
 import * as path from 'path';
 import { workspace, ExtensionContext } from 'vscode';
+import * as vscode from 'vscode';
 
 import {
 	LanguageClient,
@@ -41,14 +37,87 @@ export function activate(context: ExtensionContext) {
 
 	// Create the language client and start the client.
 	client = new LanguageClient(
-		'languageServerExample',
-		'Language Server Example',
+		'antideLSP',
+		'Language Server for ant assembly files',
 		serverOptions,
 		clientOptions
 	);
 
 	// Start the client. This will also launch the server
 	client.start();
+
+	const debuggerPath = context.asAbsolutePath(
+        path.join('..', 'bin', 'antide')
+    );
+	context.subscriptions.push(
+        vscode.debug.registerDebugAdapterDescriptorFactory('antide-debug', {
+            createDebugAdapterDescriptor(_session) {
+                // This tells VS Code to run: antide dbg <filename>
+                // We use DebugAdapterExecutable to launch the C binary directly
+                return new vscode.DebugAdapterExecutable(debuggerPath, [
+                    'dbg', 
+                    _session.configuration.program
+                ]);
+            }
+        })
+    );
+
+	context.subscriptions.push(
+        vscode.debug.registerDebugConfigurationProvider('antide-debug', {
+            provideDebugConfigurations(folder, token) {
+                return [
+                    {
+                        type: 'antide-debug',
+                        name: 'Launch Antide',
+                        request: 'launch',
+                        program: '${file}'
+                    }
+                ];
+            },
+            resolveDebugConfiguration(folder, config, token) {
+                // If the user hasn't created a launch.json, config will be empty
+                if (!config.type && !config.request && !config.name) {
+                    const editor = vscode.window.activeTextEditor;
+                    if (editor && editor.document.languageId === 'aasm') {
+                        config.type = 'antide-debug';
+                        config.name = 'Launch';
+                        config.request = 'launch';
+                        config.program = '${file}';
+                    }
+                }
+
+                if (!config.program) {
+                    return vscode.window.showInformationMessage(`Cannot find a program to debug ${JSON.stringify(config)}`).then(_ => {
+                        return undefined; // abort launch
+                    });
+                }
+
+                return config;
+            }
+        })
+    );
+	var grid_panel:any = null;
+
+	context.subscriptions.push(
+		vscode.debug.onDidReceiveDebugSessionCustomEvent(event => {
+			if (event.event === 'gridContent') {
+				// Forward the data to your Webview
+				if (grid_panel == null)
+				{
+					grid_panel = vscode.window.createWebviewPanel(
+						'antVisualizer',
+						'Ant Colony Grid',
+						vscode.ViewColumn.Beside, // Open it to the side of the code
+						{ enableScripts: true }
+					);
+				}
+				grid_panel.webview.html = "<html><head></head><body><h1>This is a test</h1></body></html>";
+
+				return vscode.window.showInformationMessage("gridContent");
+			}
+		})
+	);
+
 }
 
 export function deactivate(): Thenable<void> | undefined {
