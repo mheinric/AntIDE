@@ -1,4 +1,5 @@
 import * as path from 'path';
+import * as fs from 'fs';
 import { workspace, ExtensionContext } from 'vscode';
 import * as vscode from 'vscode';
 
@@ -8,6 +9,12 @@ import {
 	ServerOptions,
 	TransportKind
 } from 'vscode-languageclient/node';
+
+
+function getGridWebviewContent(context: vscode.ExtensionContext) {
+	const htmlPath = vscode.Uri.joinPath(context.extensionUri, 'client', 'media', 'grid.html');
+	return fs.readFileSync(htmlPath.fsPath, 'utf8');
+}
 
 let client: LanguageClient;
 
@@ -108,12 +115,17 @@ export function activate(context: ExtensionContext) {
 						'antVisualizer',
 						'Ant Colony Grid',
 						vscode.ViewColumn.Beside, // Open it to the side of the code
-						{ enableScripts: true }
+						{ 
+							enableScripts: true,
+							localResourceRoots: [vscode.Uri.joinPath(context.extensionUri, 'media')]
+						}
 					);
 				}
-				grid_panel.webview.html = "<html><head></head><body><h1>This is a test</h1></body></html>";
-
-				return vscode.window.showInformationMessage("gridContent");
+				grid_panel.webview.html = getGridWebviewContent(context); 
+				grid_panel.webview.postMessage({
+					command: 'gridContent',
+					data: event.body
+				});
 			}
 		})
 	);

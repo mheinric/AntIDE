@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!--meta http-equiv="Content-Security-Policy" 
+          content="default-src 'none' 'nonce-rAnd0m';"-->
+    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Grid</title>
+</head>
+<body>
+    <canvas id="worldGrid" width="200" height="200"></canvas>
+</body>
+<style>
+	html, body {
+		height: 100%;
+		box-sizing: border-box;
+	}
+	canvas {
+		display: block;
+		border: 1px solid black;
+		margin: 0 auto;
+	}
+</style>
+<script>
+const worldGrid = document.getElementById("worldGrid");
+const body = document.querySelector("body");
+
+function drawGrid(event)
+{
+	const ctx = worldGrid.getContext("2d");
+	let width = body.getBoundingClientRect().width - 20;
+	let height = body.getBoundingClientRect().height - 10;
+	const cells = event.data.cells; 
+	const nb_row = cells.length; 
+	const nb_col = cells[0].length;
+	const cell_size = Math.min(width / nb_col, height / nb_row);
+	worldGrid.width = nb_row * cell_size;
+	worldGrid.height = nb_col * cell_size;
+	for (let i = 0; i < cells.length; i++)
+	{
+		for (let j = 0; j < cells[i].length; j++)
+		{
+			if (cells[i][j].type == "CELL_TYPE_EMPTY")
+			{
+				ctx.fillStyle = "rgb(0 0 0)";
+			}
+			else
+			{
+				ctx.fillStyle = "rgb(255 255 255)";
+			}
+			ctx.fillRect(i * cell_size, j * cell_size, cell_size, cell_size);
+		}
+	}
+}
+window.addEventListener('message', event => {
+	if (event.data.command == 'gridContent')
+	{
+		drawGrid(event.data);
+	}
+});
+</script>
+</html>

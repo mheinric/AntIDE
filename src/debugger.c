@@ -12,7 +12,7 @@ cJSON* handle_initialize()
     //Return the server capabilities
     cJSON* capabilities = cJSON_CreateObject();
     cJSON_AddBoolToObject(capabilities, "supportsTerminateRequest", true);
-    cJSON_AddBoolToObject(capabilities, "supportsRestartRequest", true);
+    //cJSON_AddBoolToObject(capabilities, "supportsRestartRequest", true);
     cJSON_AddBoolToObject(capabilities, "supportsInstructionBreakpoints", true);
     cJSON_AddBoolToObject(capabilities, "supportsConfigurationDoneRequest", true);
     return capabilities; 
@@ -45,10 +45,37 @@ handle_launch(const cJSON* /*params*/)
     return cJSON_CreateObject();
 }
 
+static
+cJSON*
+cells_to_json()
+{
+    cJSON* result = cJSON_CreateArray(); 
+    for (int i = 0; i < 10; i++)
+    {
+        cJSON* row = cJSON_CreateArray();
+        for (int j = 0; j < 10; j++)
+        {
+            cJSON* json_cell = cJSON_CreateObject();
+            cJSON_AddStringToObject(json_cell, "type", (i+j) % 2 == 0 ? "CELL_TYPE_EMPTY" : "CELL_TYPE_WALL");
+            cJSON_AddItemToArray(row, json_cell);
+        }
+        cJSON_AddItemToArray(result, row); 
+    }
+    return result;
+}
+
 static 
 cJSON*
 handle_configuration_done()
 {
+    //TODO: this is temporary for testing
+    PENDING_NOTIF = cJSON_Parse("{\n"
+        "\"type\": \"event\",\n"
+        "\"event\": \"gridContent\",\n"
+        "\"body\": {\n"
+        "}\n"
+    "}");
+    cJSON_AddItemToObject(cJSON_GetObjectItem(PENDING_NOTIF, "body"), "cells", cells_to_json());
     return cJSON_CreateObject();
 }
 
@@ -111,12 +138,6 @@ static
 cJSON*
 handle_continue(const cJSON* /*params*/)
 {
-    //TODO: this is temporary for testing
-    PENDING_NOTIF = cJSON_Parse("{\n"
-        "\"type\": \"event\",\n"
-        "\"event\": \"gridContent\",\n"
-        "\"body\": {}\n"
-    "}");
     return cJSON_CreateNull();
 }
 
