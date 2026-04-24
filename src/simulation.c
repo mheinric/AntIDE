@@ -79,6 +79,7 @@ cJSON *simulation_to_json(Simulation *sim)
 {
     cJSON* sim_json = cJSON_CreateObject(); 
     cJSON_AddItemToObject(sim_json, "map", grid_map_to_json(&sim->map));
+    cJSON_AddNumberToObject(sim_json, "step_number", sim->step_number);
     return sim_json;
 }
 

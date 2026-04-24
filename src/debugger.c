@@ -37,7 +37,7 @@ simulation_runner(void*)
             break;
         }
         send_update();
-        usleep(100 * 1000);
+        usleep(30 * 1000);
     }
     simulation_delete(SIM);
     SIM = NULL;
@@ -96,7 +96,7 @@ handle_launch(const cJSON* params)
     program_init_move(&prog, &result.program);
     parse_result_cleanup(&result);
     GridMap map; 
-    grid_map_init(&map, map_settings_create_default(42));
+    grid_map_init(&map, map_settings_create_test(42));
     SIM = simulation_create(simulation_settings_create_default(42), prog, map);
 
     //Prepare the Initialized notification that will be sent after the response has been sent.

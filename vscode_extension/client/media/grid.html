@@ -10,6 +10,10 @@
 </head>
 <body>
     <canvas id="worldGrid" width="200" height="200"></canvas>
+	<div id="controlsDiv">
+		<progress id="simulationProgress" max="2000" value="0"></progress><span id="simulationProgressLabel">0/2000</span>
+
+	</div>
 </body>
 <style>
 	html, body {
@@ -21,10 +25,27 @@
 		border: 1px solid black;
 		margin: 0 auto;
 	}
+	#controlsDiv {
+		position: absolute; 
+		bottom: 0; 
+		left: 0;
+		height: 50px;
+		width: 100%;
+	}
+	#simulationProgress {
+		width: calc(100% - 100px);
+		margin-left: 20px;
+		margin-right: 5px;
+	}
+	#simulationProgressLabel {
+		width: 80px;
+	}
 </style>
 <script>
-const worldGrid = document.getElementById("worldGrid");
 const body = document.querySelector("body");
+const worldGrid = document.getElementById("worldGrid");
+const simulationProgress = document.getElementById("simulationProgress");
+const simulationProgressLabel = document.getElementById("simulationProgressLabel");
 
 function getCellColor(cell) {
 	if (cell.type == "CELL_TYPE_EMPTY")
@@ -50,9 +71,12 @@ function getCellColor(cell) {
 
 function drawGrid(event)
 {
+	simulationProgress.value = event.data.simulation.step_number;
+	simulationProgressLabel.textContent = `${event.data.simulation.step_number}/2000`;
+
 	const ctx = worldGrid.getContext("2d");
 	let width = body.getBoundingClientRect().width - 20;
-	let height = body.getBoundingClientRect().height - 10;
+	let height = body.getBoundingClientRect().height - 10 - 50;
 	const cells = event.data.simulation.map.cells; 
 	const nb_row = cells.length; 
 	const nb_col = cells[0].length;
