@@ -13,9 +13,6 @@ typedef enum {
     CELL_TYPE_NEST,
 } CellType;
 
-cJSON*
-cell_type_to_json(CellType cellType);
-
 typedef struct {
     CellType type;
     uint8_t pheromones[4];
@@ -23,8 +20,8 @@ typedef struct {
     size_t nb_ants;
 } Cell;
 
-cJSON*
-cell_to_json(const Cell* cell);
+void
+cell_serialization(const Cell* cell, char* buffer);
 
 typedef struct {
     size_t random_seed; 

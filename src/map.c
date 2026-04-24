@@ -1,25 +1,18 @@
 #include "map.h"
 #include "internals/rng.h"
 
-cJSON *cell_type_to_json(CellType cellType)
-{
-    switch(cellType)
-    {
-        case CELL_TYPE_EMPTY: return cJSON_CreateString("CELL_TYPE_EMPTY");
-        case CELL_TYPE_WALL: return cJSON_CreateString("CELL_TYPE_WALL");
-        case CELL_TYPE_NEST: return cJSON_CreateString("CELL_TYPE_NEST");
-    }
-    assert(false);
-    return cJSON_CreateNull();
-}
+// Serialization format: 
+// type: 1byte
+// food_amount: 1byte
+// nb_ants: 8bytes
+// Keep this value in sync with grid.html
+#define BYTES_PER_CELL (1 + 1 + 8)
 
-cJSON *cell_to_json(const Cell *cell)
+void cell_serialization(const Cell *cell, char *buffer)
 {
-    cJSON* cell_json = cJSON_CreateObject(); 
-    cJSON_AddItemToObject(cell_json, "type", cell_type_to_json(cell->type));
-    cJSON_AddNumberToObject(cell_json, "food_amount", cell->food_amount);
-    cJSON_AddNumberToObject(cell_json, "nb_ants", cell->nb_ants);
-    return cell_json;
+    buffer[0] = '0' + cell->type;
+    buffer[1] = '0' + cell->food_amount;
+    sprintf(buffer + 2, "%08x", (unsigned int) cell->nb_ants); 
 }
 
 MapSettings map_settings_create_default(size_t random_seed)
@@ -103,18 +96,20 @@ cJSON *grid_map_to_json(const GridMap *map)
     cJSON* map_json = cJSON_CreateObject(); 
     cJSON_AddNumberToObject(map_json, "width", map->width); 
     cJSON_AddNumberToObject(map_json, "height", map->height);
-    cJSON* cells_json = cJSON_CreateArray(); 
-    cJSON_AddItemToObject(map_json, "cells", cells_json); 
+
+    char* cell_data = calloc(map->width * map->height + 1, BYTES_PER_CELL); 
+    char* it = cell_data;
     for (size_t y = 0; y < map->height; y++)
     {
-        cJSON* row = cJSON_CreateArray();
-        cJSON_AddItemToArray(cells_json, row);
         for (size_t x = 0; x < map->width; x++)
         {
-            cJSON_AddItemToArray(row, cell_to_json(grid_map_get_cell(map, (Position) { .x = x, .y = y })));
+            cell_serialization(grid_map_get_cell(map, (Position) { .x = x, .y = y }), it); 
+            it += BYTES_PER_CELL;
         }
     }
 
+    cJSON_AddStringToObject(map_json, "cells", cell_data);
+    free(cell_data); 
     return map_json;
 }
 
