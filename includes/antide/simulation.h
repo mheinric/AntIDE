@@ -1,25 +1,8 @@
 #pragma once
 #include "ast.h"
+#include "map.h"
 #include "utils.h"
-
-typedef struct {
-    size_t x; 
-    size_t y;
-} Position;
-
-typedef enum {
-    CELL_TYPE_EMPTY = 0,
-    CELL_TYPE_WALL,
-    CELL_TYPE_NEST,
-} CellType;
-
-typedef struct {
-    CellType type;
-    Position position;
-    uint8_t pheromones[4];
-    uint8_t food_amount;
-    size_t nb_ants;
-} Cell; 
+#include <cJSON/cJSON.h>
 
 bool
 cell_matches_entity(Cell *cell, EntityType entity_type);
@@ -39,8 +22,6 @@ ant_get_arg_value(Ant *ant, Argument arg);
 
 typedef struct {
     size_t random_seed; 
-    size_t width; 
-    size_t height;
     size_t nb_ants;
 } SimulationSettings;
 
@@ -54,10 +35,13 @@ struct Simulation;
 typedef struct Simulation Simulation;
 
 Simulation*
-simulation_create(SimulationSettings settings, Program prog);
+simulation_create(SimulationSettings settings, Program prog, GridMap map);
 
 void 
 simulation_delete(Simulation *sim);
+
+cJSON*
+simulation_to_json(Simulation *sim);
 
 void
 simulation_run_step(Simulation *sim);

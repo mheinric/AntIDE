@@ -69,34 +69,22 @@ main(int argc, char** argv)
         {
             Program prog; 
             program_init_move(&prog, &result.program);
+            const MapSettings map_settings = map_settings_create_default(42);
+            GridMap map;
+            grid_map_init(&map, map_settings);
+
             SimulationSettings settings = simulation_settings_create_default(42);
-            Simulation* sim = simulation_create(settings, prog);
-            Position start_pos = simulation_get_ant(sim, 0)->position;
-            for (int i = -1; i < 2; i++)
+            Simulation* sim = simulation_create(settings, prog, map);
+
+            size_t total_food_amount = 0; 
+            for (size_t x = 0; x < map.width; x++)
             {
-                for (int j = -1; j < 2; j++)
+                for (size_t y = 0; y < map.height; y++)
                 {
-                    Position nest_pos = { .x = start_pos.x + i, .y = start_pos.y + j };
-                    simulation_get_cell(sim, nest_pos)->type = CELL_TYPE_NEST;
+                    total_food_amount += simulation_get_cell(sim, (Position) { .x = x, .y = y })->food_amount;
                 }
             }
 
-            RandomGenerator rand;
-            random_generator_init(&rand, 42); 
-            size_t total_food_amount = 0;
-            for (int i = 0; i < 1000; i++)
-            {
-                Position pos = { 
-                    .x = random_generator_generate(&rand, settings.width), 
-                    .y = random_generator_generate(&rand, settings.height)
-                };
-                Cell *cell = simulation_get_cell(sim, pos);
-                if (cell->type == CELL_TYPE_EMPTY && cell->food_amount < 8)
-                {
-                    cell->food_amount++; 
-                    total_food_amount++;
-                }
-            }
             for (int i = 0; i < 2000; i++)
             {
                 simulation_run_step(sim);

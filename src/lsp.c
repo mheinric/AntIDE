@@ -126,7 +126,7 @@ void handle_document_change(const cJSON* params)
     cJSON_AddStringToObject(notif_params, "uri", doc_uri);
     cJSON_AddItemToObject(notif_params, "diagnostics", diagnostics);
 
-    send_packet(notif);
+    send_packet(notif, true);
 }
 
 void
@@ -231,7 +231,7 @@ run_lsp(void)
             }
             print_debug("Sending response");
             print_debug_packet(resp);
-            send_packet(resp);
+            send_packet(resp, true);
         }
 
 loop_iter_end: 

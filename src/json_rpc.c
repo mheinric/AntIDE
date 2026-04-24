@@ -1,5 +1,4 @@
 #include "json_rpc.h"
-#include "utils.h"
 
 static FILE* DEBUG_FILE = NULL;
 
@@ -35,9 +34,12 @@ print_debug_packet(const cJSON* packet)
 }
 
 void 
-send_packet(cJSON* packet)
+send_packet(cJSON* packet, bool debug)
 {
-    print_debug_packet(packet);
+    if (debug)
+    {
+        print_debug_packet(packet);
+    }
     char* content = cJSON_Print(packet); 
     free(packet); 
     const size_t length = strlen(content); 

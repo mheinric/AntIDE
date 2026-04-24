@@ -1,4 +1,5 @@
 #pragma once
+#include "utils.h"
 #include <cJSON/cJSON.h>
 
 void
@@ -14,7 +15,7 @@ void
 print_debug_packet(const cJSON* packet);
 
 void 
-send_packet(cJSON* packet);
+send_packet(cJSON* packet, bool debug);
 
 cJSON*
 wait_for_message();

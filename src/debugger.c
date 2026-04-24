@@ -1,10 +1,53 @@
 #include "debugger.h"
+#include "simulation.h"
+#include "parser.h"
 #include "json_rpc.h"
 #include "utils.h"
+#include <pthread.h>
+#include <unistd.h>
 
+static bool STOP_SIM = false;
 static bool EXIT_DEBUGGER = false;
 
 static cJSON* PENDING_NOTIF = NULL;
+static Simulation* SIM = NULL;
+static pthread_t SIM_THREAD;
+
+void
+send_update()
+{
+    cJSON* notif = cJSON_Parse("{\n"
+        "\"type\": \"event\",\n"
+        "\"event\": \"gridContent\"\n"
+    "}");
+    assert(notif != NULL);
+    cJSON* sim_state = simulation_to_json(SIM);
+    cJSON_AddItemToObject(cJSON_AddObjectToObject(notif, "body"), "simulation", sim_state);
+    send_packet(notif, false);
+}
+
+void* 
+simulation_runner(void*) 
+{
+    for (size_t i = 0; i < 2000; i++)
+    {
+        simulation_run_step(SIM);
+        if (STOP_SIM)
+        {
+            break;
+        }
+        send_update();
+        usleep(100 * 1000);
+    }
+    simulation_delete(SIM);
+    SIM = NULL;
+
+    cJSON* terminated_notif = cJSON_CreateObject(); 
+    cJSON_AddStringToObject(terminated_notif, "type", "event"); 
+    cJSON_AddStringToObject(terminated_notif, "event", "terminated");
+    send_packet(terminated_notif, true);
+    return NULL;
+}
 
 static 
 cJSON* handle_initialize()
@@ -35,33 +78,36 @@ handle_set_breakpoints(const cJSON* /*params*/)
 
 static 
 cJSON*
-handle_launch(const cJSON* /*params*/)
+handle_launch(const cJSON* params)
 {
+    const char* filename = cJSON_GetStringValue(cJSON_GetObjectItem(params, "program"));
+    if (filename == NULL)
+    {
+        print_debug("handle_launch: No filename field in input params");
+        goto launch_error;
+    }
+    ParseResult result = parse_program_from_file(filename);
+    if (parse_result_nb_errors(&result) > 0)
+    {
+        print_debug("handle_launch: Failed to parse program");
+        goto launch_error;
+    }
+    Program prog; 
+    program_init_move(&prog, &result.program);
+    parse_result_cleanup(&result);
+    GridMap map; 
+    grid_map_init(&map, map_settings_create_default(42));
+    SIM = simulation_create(simulation_settings_create_default(42), prog, map);
+
     //Prepare the Initialized notification that will be sent after the response has been sent.
     PENDING_NOTIF = cJSON_CreateObject(); 
     cJSON_AddStringToObject(PENDING_NOTIF, "type", "event");
     cJSON_AddStringToObject(PENDING_NOTIF, "event", "initialized");
 
     return cJSON_CreateObject();
-}
-
-static
-cJSON*
-cells_to_json()
-{
-    cJSON* result = cJSON_CreateArray(); 
-    for (int i = 0; i < 10; i++)
-    {
-        cJSON* row = cJSON_CreateArray();
-        for (int j = 0; j < 10; j++)
-        {
-            cJSON* json_cell = cJSON_CreateObject();
-            cJSON_AddStringToObject(json_cell, "type", (i+j) % 2 == 0 ? "CELL_TYPE_EMPTY" : "CELL_TYPE_WALL");
-            cJSON_AddItemToArray(row, json_cell);
-        }
-        cJSON_AddItemToArray(result, row); 
-    }
-    return result;
+launch_error:
+    //TODO: we don't have any other way of reporting an error here.
+    return NULL;
 }
 
 static 
@@ -69,13 +115,8 @@ cJSON*
 handle_configuration_done()
 {
     //TODO: this is temporary for testing
-    PENDING_NOTIF = cJSON_Parse("{\n"
-        "\"type\": \"event\",\n"
-        "\"event\": \"gridContent\",\n"
-        "\"body\": {\n"
-        "}\n"
-    "}");
-    cJSON_AddItemToObject(cJSON_GetObjectItem(PENDING_NOTIF, "body"), "cells", cells_to_json());
+    pthread_create(&SIM_THREAD, NULL, simulation_runner, NULL);
+
     return cJSON_CreateObject();
 }
 
@@ -97,9 +138,7 @@ handle_terminate(const cJSON* /*params*/)
 {
     // Stop the simulation, but don't stop the debugger
     // Note: there is a 'restart' param if we want to restart the simulation from the start that needs to be accounted for
-    PENDING_NOTIF = cJSON_CreateObject(); 
-    cJSON_AddStringToObject(PENDING_NOTIF, "type", "event"); 
-    cJSON_AddStringToObject(PENDING_NOTIF, "event", "terminated");
+    STOP_SIM = true;
     return cJSON_CreateNull();
 }
 
@@ -258,7 +297,7 @@ run_debugger(void)
                 cJSON_AddStringToObject(resp, "body", "Internal error");
             }
             print_debug("Sending response");
-            send_packet(resp);
+            send_packet(resp, true);
         }
         else 
         {
@@ -269,7 +308,7 @@ run_debugger(void)
         if (PENDING_NOTIF != NULL) 
         {
             print_debug("Sending pending event");
-            send_packet(PENDING_NOTIF); 
+            send_packet(PENDING_NOTIF, true); 
             PENDING_NOTIF = NULL;
         }
 

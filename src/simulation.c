@@ -1,4 +1,5 @@
 #include "simulation_private.h"
+#include "simulation.h"
 
 bool 
 cell_matches_entity(Cell *cell, EntityType entity_type)
@@ -27,31 +28,10 @@ int32_t ant_get_arg_value(Ant *ant, Argument arg)
     }
 }
 
-void random_generator_init(RandomGenerator *rand, uint64_t seed)
-{
-    rand->state = seed;
-}
-
-void random_generator_cleanup(RandomGenerator */*rand*/)
-{
-}
-
-int32_t random_generator_generate(RandomGenerator *rand, int32_t max_bound)
-{
-    assert(max_bound != 0);
-    // Values taken from https://en.wikipedia.org/wiki/Linear_congruential_generator from the MUSL implementation
-    rand->state = rand->state * 6364136223846793005 + 1;
-    // we return the upper bits
-    int32_t result = (rand->state >> 32) % abs(max_bound);
-    return max_bound < 0 ? -result : result; //Note when max_bound is negative we get negative values.
-}
-
 SimulationSettings simulation_settings_create_default(size_t random_seed)
 {
     return (SimulationSettings) {
         .random_seed = random_seed,
-        .width = 128, 
-        .height = 128,
         .nb_ants = 200,
     };
 }
@@ -60,43 +40,26 @@ SimulationSettings simulation_settings_create_test()
 {
     return (SimulationSettings) {
         .random_seed = 42,
-        .width = 10, 
-        .height = 10,
         .nb_ants = 1,
     };
 }
 
 Simulation* 
-simulation_create(SimulationSettings settings, Program prog)
+simulation_create(SimulationSettings settings, Program prog, GridMap map)
 {
     Simulation* sim = calloc(1, sizeof(Simulation));
     sim->settings = settings;
     sim->step_number = 0;
     sim->ants = calloc(settings.nb_ants, sizeof(Ant));
-    Position default_pos = { .x = (settings.width - 1) / 2, .y = (settings.height -1) / 2 }; 
+
     for (size_t i = 0; i < settings.nb_ants; i++)
     {
         sim->ants[i].id = (int32_t) i;
-        sim->ants[i].position = default_pos; 
+        sim->ants[i].position = map.starting_pos; 
     }
     sim->program = prog;
-    sim->width = settings.width;
-    sim->height = settings.height;
-    sim->cells = calloc(sim->width * sim->height, sizeof(Cell));
-    for (size_t y = 0; y < sim->height; y++)
-    {
-        for (size_t x = 0; x < sim->width; x++)
-        {
-            Position pos = { .x = x, .y = y };
-            simulation_get_cell(sim, pos)->position = pos;
-            if (x == 0 || y == 0 || x == sim->width - 1 || y == sim->height - 1)
-            {
-                //Put walls on all the borders of the map.
-                simulation_get_cell(sim, pos)->type = CELL_TYPE_WALL; 
-            }
-        }
-    }
-    simulation_get_cell(sim, default_pos)->nb_ants = settings.nb_ants;
+    sim->map = map;
+    simulation_get_cell(sim, map.starting_pos)->nb_ants = settings.nb_ants;
     sim->score = 0;
     random_generator_init(&sim->random_generator, settings.random_seed);
     return sim;
@@ -107,9 +70,16 @@ void simulation_delete(Simulation *sim)
     assert(sim != NULL);
     program_cleanup(&sim->program);
     random_generator_cleanup(&sim->random_generator);
-    free(sim->cells);
+    grid_map_cleanup(&sim->map);
     free(sim->ants);
     free(sim);
+}
+
+cJSON *simulation_to_json(Simulation *sim)
+{
+    cJSON* sim_json = cJSON_CreateObject(); 
+    cJSON_AddItemToObject(sim_json, "map", grid_map_to_json(&sim->map));
+    return sim_json;
 }
 
 void simulation_ant_run_single_instruction(Simulation *sim, Ant *ant, Instruction inst)
@@ -463,7 +433,7 @@ void simulation_run_step(Simulation *sim)
 {
     sim->step_number++;
     // Decay the pheromones
-    for (Cell* it = sim->cells; it != sim->cells + sim->width * sim->height; it++)
+    for (Cell* it = sim->map.cells; it != sim->map.cells + sim->map.width * sim->map.height; it++)
     {
         for (int i = 0; i < 4; i++)
         {
@@ -496,16 +466,14 @@ size_t simulation_get_score(Simulation *sim)
 Cell*
 simulation_get_cell(Simulation *sim, Position pos)
 {
-    assert(pos.x < sim->width);
-    assert(pos.y < sim->height);
-    return &sim->cells[sim->width * pos.y + pos.x];
+    return grid_map_get_cell(&sim->map, pos);
 }
 
 Cell*
 simulation_get_neighbor_cell(Simulation *sim, Position pos, Direction dir)
 {
-    assert(pos.x > 0 && pos.x < sim->width - 1); // No support for fetching neighbors of border cells
-    assert(pos.y > 0 && pos.y < sim->height - 1);
+    assert(pos.x > 0 && pos.x < sim->map.width - 1); // No support for fetching neighbors of border cells
+    assert(pos.y > 0 && pos.y < sim->map.height - 1);
     switch(dir)
     {
         case DIR_HERE: break; 

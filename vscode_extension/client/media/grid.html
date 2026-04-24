@@ -26,30 +26,55 @@
 const worldGrid = document.getElementById("worldGrid");
 const body = document.querySelector("body");
 
+function getCellColor(cell) {
+	if (cell.type == "CELL_TYPE_EMPTY")
+	{
+		const color_amount = 255 - 25 * cell.food_amount;
+
+		return `rgb(${color_amount} ${color_amount} 255)`;
+	}
+	else if (cell.type == "CELL_TYPE_WALL")
+	{
+		return "rgb(0 0 0)";
+	}
+	else if (cell.type == "CELL_TYPE_NEST")
+	{
+		return "#70d470";
+	}
+	else
+	{
+		//Unkown cell type
+		return "rgb(255 0 255)";
+	}
+}
+
 function drawGrid(event)
 {
 	const ctx = worldGrid.getContext("2d");
 	let width = body.getBoundingClientRect().width - 20;
 	let height = body.getBoundingClientRect().height - 10;
-	const cells = event.data.cells; 
+	const cells = event.data.simulation.map.cells; 
 	const nb_row = cells.length; 
 	const nb_col = cells[0].length;
 	const cell_size = Math.min(width / nb_col, height / nb_row);
 	worldGrid.width = nb_row * cell_size;
 	worldGrid.height = nb_col * cell_size;
-	for (let i = 0; i < cells.length; i++)
+	for (let y = 0; y < cells.length; y++)
 	{
-		for (let j = 0; j < cells[i].length; j++)
+		for (let x = 0; x < cells[y].length; x++)
 		{
-			if (cells[i][j].type == "CELL_TYPE_EMPTY")
+			const cell = cells[y][x];
+			const cell_pos_x = x * cell_size;
+			const cell_pos_y = (cells.length - y - 1) * cell_size;
+			ctx.fillStyle = getCellColor(cell);
+			ctx.fillRect(cell_pos_x, cell_pos_y, cell_size, cell_size);
+			if (cell.nb_ants > 0)
 			{
-				ctx.fillStyle = "rgb(0 0 0)";
+				ctx.fillStyle = "orange"; 
+				ctx.beginPath();
+				ctx.arc(cell_pos_x + cell_size / 2, cell_pos_y + cell_size / 2, cell_size / 2, 0, 2 * Math.PI);
+				ctx.fill();
 			}
-			else
-			{
-				ctx.fillStyle = "rgb(255 255 255)";
-			}
-			ctx.fillRect(i * cell_size, j * cell_size, cell_size, cell_size);
 		}
 	}
 }

@@ -8,7 +8,9 @@ test_simulation_init(void)
 {
     Program prog; 
     program_init(&prog);
-    Simulation* sim = simulation_create(simulation_settings_create_test(), prog);
+    GridMap map; 
+    grid_map_init(&map, map_settings_create_test());
+    Simulation* sim = simulation_create(simulation_settings_create_test(), prog, map);
     simulation_run_step(sim);
     TEST_ASSERT_EQUAL_UINT64(1, simulation_get_step_number(sim));
     TEST_ASSERT_EQUAL_UINT64(0, simulation_get_ant(sim, 0)->id);
@@ -35,7 +37,9 @@ create_test_sim(const char* program)
     Program prog; 
     program_init_move(&prog, &parse_result.program);
     parse_result_cleanup(&parse_result);
-    return simulation_create(simulation_settings_create_test(), prog);
+    GridMap map; 
+    grid_map_init(&map, map_settings_create_test());
+    return simulation_create(simulation_settings_create_test(), prog, map);
 }
 
 void 
@@ -329,7 +333,9 @@ test_simulation_id(void)
     program_push_instruction(&prog, instruction_create_info(INST_ID, 0));
     SimulationSettings settings = simulation_settings_create_test();
     settings.nb_ants = 10;
-    Simulation* sim = simulation_create(settings, prog);
+    GridMap map; 
+    grid_map_init(&map, map_settings_create_test());
+    Simulation* sim = simulation_create(settings, prog, map);
     simulation_run_step(sim);
     for (size_t i = 0; i < settings.nb_ants; i++)
     {
@@ -449,7 +455,9 @@ test_simulation_sense_ants(void)
     program_push_instruction(&prog, instruction_create_sense(argument_create_value(ENT_ANT), 0));
     SimulationSettings settings = simulation_settings_create_test();
     settings.nb_ants = 2;
-    Simulation* sim = simulation_create(settings, prog);
+    GridMap map; 
+    grid_map_init(&map, map_settings_create_test());
+    Simulation* sim = simulation_create(settings, prog, map);
     Position north_pos = simulation_get_ant(sim, 0)->position;
     north_pos.y += 1;
     simulation_set_ant_position(sim, simulation_get_ant(sim, 1), north_pos);

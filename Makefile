@@ -8,13 +8,10 @@ LIB_DIR = lib
 CFLAGS = -g -Wall -Wextra -Werror -I $(SRC_DIR) -I $(HEADER_DIR) -I $(TEST_DIR) -I $(LIB_DIR)
 LDFLAGS =
 
-UNITY_DIR = tests/unity
-
-SRC = $(SRC_DIR)/parser.c $(SRC_DIR)/ast.c $(SRC_DIR)/simulation.c $(SRC_DIR)/lsp.c $(SRC_DIR)/debugger.c $(SRC_DIR)/json_rpc.c $(LIB_DIR)/cJSON/cJSON.c
-HEADERS = $(HEADER_DIR)/utils.h $(HEADER_DIR)/parser.h $(HEADER_DIR)/ast.h $(HEADER_DIR)/lsp.h $(HEADER_DIR)/debugger.h $(SRC_DIR)/internals/vector.h $(SRC_DIR)/parser_private.h $(SRC_DIR)/simulation_private.h $(SRC_DIR)/json_rpc.h $(LIB_DIR)/cJSON/cJSON.h
+SRC =  $(shell find $(SRC_DIR) -name '*.c' ! -name 'main.c') $(shell find $(LIB_DIR) -name '*.c')
+HEADERS =  $(shell find $(HEADER_DIR) -name '*.h') $(shell find $(SRC_DIR) -name '*.h') $(shell find $(LIB_DIR) -name '*.h')
 EXECUTABLE_SRC = $(SRC_DIR)/main.c $(SRC)
-UNITY_SRC = $(UNITY_DIR)/unity.c
-TEST_SRC = $(TEST_DIR)/test_main.c $(TEST_DIR)/test_parser.c $(TEST_DIR)/test_simulation.c
+TEST_SRC = $(shell find $(TEST_DIR) -name '*.c')
 
 BIN = bin
 EXECUTABLE = $(BIN)/antide
@@ -30,8 +27,8 @@ $(BIN):
 $(EXECUTABLE): $(BIN) $(EXECUTABLE_SRC) $(HEADERS)
 	$(CC) $(CFLAGS) -o $@ $(EXECUTABLE_SRC) $(LDFLAGS)
 
-$(TEST_EXECUTABLE): $(BIN) $(TEST_SRC) $(SRC) $(UNITY_SRC) $(HEADERS)
-	$(CC) $(CFLAGS) -o $@ $(TEST_SRC) $(SRC) $(UNITY_SRC) $(LDFLAGS)
+$(TEST_EXECUTABLE): $(BIN) $(TEST_SRC) $(SRC) $(HEADERS)
+	$(CC) $(CFLAGS) -o $@ $(TEST_SRC) $(SRC) $(LDFLAGS)
 
 test: $(TEST_EXECUTABLE)
 	./$(TEST_EXECUTABLE)
