@@ -37,7 +37,7 @@ simulation_runner(void*)
             break;
         }
         send_update();
-        usleep(30 * 1000);
+        usleep(100 * 1000);
     }
     simulation_delete(SIM);
     SIM = NULL;

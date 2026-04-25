@@ -104,6 +104,7 @@ export function activate(context: ExtensionContext) {
         })
     );
 	var grid_panel:any = null;
+	var lastSimData:any = null;
 
 	context.subscriptions.push(
 		vscode.debug.onDidReceiveDebugSessionCustomEvent(event => {
@@ -120,11 +121,21 @@ export function activate(context: ExtensionContext) {
 							localResourceRoots: [vscode.Uri.joinPath(context.extensionUri, 'media')]
 						}
 					);
+					grid_panel.webview.html = getGridWebviewContent(context); 
+					grid_panel.webview.onDidReceiveMessage((message:any) => {
+						if (message.command == "refreshPage") {
+							grid_panel.webview.html = getGridWebviewContent(context); 
+						}
+						grid_panel.webview.postMessage({
+							command: 'gridContent',
+							data: lastSimData
+						});
+					});
 				}
-				grid_panel.webview.html = getGridWebviewContent(context); 
+				lastSimData = event.body;
 				grid_panel.webview.postMessage({
 					command: 'gridContent',
-					data: event.body
+					data: lastSimData
 				});
 			}
 		})
