@@ -11,7 +11,12 @@
 <body>
     <canvas id="worldGrid" width="200" height="200"></canvas>
 	<div id="controlsDiv">
-		<progress id="simulationProgress" max="2000" value="0"></progress><span id="simulationProgressLabel">0/2000</span>
+		<progress id="simulationProgress" max="2000" value="0"></progress><span id="simulationProgressLabel">0/2000</span><br>
+		<span id="pheroLabel">Pheromones:</span>
+		<button class="pheroButton" id="redChanButton">R</button>
+		<button class="pheroButton" id="blueChanButton">B</button>
+		<button class="pheroButton" id="greenChanButton">G</button>
+		<button class="pheroButton" id="yellowChanButton">Y</button>
 
 	</div>
 </body>
@@ -40,12 +45,74 @@
 	#simulationProgressLabel {
 		width: 80px;
 	}
+
+	#pheroLabel {
+		margin-left: 20px;
+	}
+
+	.pheroButton {
+		margin: 0 3px;
+		padding: 0px 7px;
+		border-radius: 10px; 
+		font-weight: bold;
+		border: 1px solid #333;
+		cursor: pointer;
+		color: white;
+		filter: grayscale(80%) brightness(120%);
+	}
+
+	.pheroButton.pheroEnable {
+		filter: none;
+	}
+
+	#redChanButton
+	{
+		background-color: #db6767;
+	}
+
+	#blueChanButton
+	{
+		background-color: #9191eb;
+	}
+
+	#greenChanButton
+	{
+		background-color: #6bd46b;
+	}
+
+	#yellowChanButton
+	{
+		background-color: #cece06;
+	}
+
+	.pheroCB {
+		display: none;
+	}
 </style>
 <script>
 const body = document.querySelector("body");
 const worldGrid = document.getElementById("worldGrid");
 const simulationProgress = document.getElementById("simulationProgress");
 const simulationProgressLabel = document.getElementById("simulationProgressLabel");
+const redChanButton = document.getElementById("redChanButton");
+const blueChanButton = document.getElementById("blueChanButton");
+const greenChanButton = document.getElementById("greenChanButton");
+const yellowChanButton = document.getElementById("yellowChanButton");
+const pheromoneButtons = [
+	redChanButton,
+	blueChanButton,
+	greenChanButton,
+	yellowChanButton,
+];
+var simData = null;
+
+for (let button of pheromoneButtons) {
+	button.onclick = () => { 
+		button.classList.toggle("pheroEnable"); 
+		updateGrid();
+	};
+}
+
 
 function getCellColor(cell) {
 	if (cell.type == 0)
@@ -69,20 +136,32 @@ function getCellColor(cell) {
 	}
 }
 
-function drawGrid(event)
+function updateGrid()
 {
-	simulationProgress.value = event.data.simulation.step_number;
-	simulationProgressLabel.textContent = `${event.data.simulation.step_number}/2000`;
+	simulationProgress.value = simData.simulation.step_number;
+	simulationProgressLabel.textContent = `${simData.simulation.step_number}/2000`;
 
 	const ctx = worldGrid.getContext("2d");
 	let width = body.getBoundingClientRect().width - 20;
 	let height = body.getBoundingClientRect().height - 10 - 50;
-	const cells = event.data.simulation.map.cells; 
+	const cells = simData.simulation.map.cells; 
 	const nb_row = cells.length; 
 	const nb_col = cells[0].length;
 	const cell_size = Math.min(width / nb_col, height / nb_row);
 	worldGrid.width = nb_row * cell_size;
 	worldGrid.height = nb_col * cell_size;
+	ctx.clearRect(0, 0, worldGrid.width, worldGrid.height);
+	const pheromone_colors = [
+		"255,   0,   0", //RED
+		"  0,   0, 255", //BLUE
+		"  0, 255,   0", //GREEN
+		"207, 193,  12", //YELLOW
+	];
+	const enabledPheromones = []; 
+	for (let i = 0 ; i < 4; i++)
+	{
+		enabledPheromones.push(pheromoneButtons[i].classList.contains("pheroEnable"));	
+	}
 	for (let y = 0; y < cells.length; y++)
 	{
 		for (let x = 0; x < cells[y].length; x++)
@@ -99,21 +178,37 @@ function drawGrid(event)
 				ctx.arc(cell_pos_x + cell_size / 2, cell_pos_y + cell_size / 2, cell_size / 2, 0, 2 * Math.PI);
 				ctx.fill();
 			}
+
+			for (let i = 0; i < 4; i++)
+			{
+				if (cell.pheromones[i] > 0 && enabledPheromones[i])
+				{
+					ctx.fillStyle = `rgba(${pheromone_colors[i]}, ${cell.pheromones[i] / 255.0 / 4.0})`;
+					ctx.fillRect(cell_pos_x, cell_pos_y, cell_size, cell_size);
+				}
+			}
 		}
 	}
 }
 
 function parseCell(data, start) {
+	const pheromones = []; 
+	for (let i = 0; i < 4; i++)
+	{
+		const ph_start = start + 10 + 2 * i;
+		pheromones.push(Number('0x' + data.substring(ph_start, ph_start + 2)));
+	}
 	return {
 		type: data[start] - '0',
 		food_amount: data[start + 1] - '0',
-		nb_ants: Number('0x' + data.substring(start + 2, start + 10))
+		nb_ants: Number('0x' + data.substring(start + 2, start + 10)),
+		pheromones: pheromones
 	};
 }
 
 function parseData(data) {
-	const map = data.data.simulation.map; 
-	const BYTES_PER_CELL = 10; //Keep this value in sync with map.c
+	const map = data.simulation.map; 
+	const BYTES_PER_CELL = 18; //Keep this value in sync with map.c
 
 	const cells_matrix = []; 
 	for (let y = 0; y < map.height; y++)
@@ -127,22 +222,14 @@ function parseData(data) {
 		cells_matrix.push(row);
 	}
 	map.cells = cells_matrix;
-	/*
-	for (let i = 0; i < cells.length; i++)
-	{
-		for (let j = 0; j < cells[i].length; j++)
-		{
-			cells[i][j] = parseCell(cells[i][j]);
-		}	
-	}
-	*/
 	return data;
 }
 
 window.addEventListener('message', event => {
 	if (event.data.command == 'gridContent')
 	{
-		drawGrid(parseData(event.data));
+		simData = parseData(event.data.data);
+		updateGrid();
 	}
 });
 </script>

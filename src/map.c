@@ -5,14 +5,19 @@
 // type: 1byte
 // food_amount: 1byte
 // nb_ants: 8bytes
+// pheromones: 4x2bytes
 // Keep this value in sync with grid.html
-#define BYTES_PER_CELL (1 + 1 + 8)
+#define BYTES_PER_CELL 18
 
 void cell_serialization(const Cell *cell, char *buffer)
 {
     buffer[0] = '0' + cell->type;
     buffer[1] = '0' + cell->food_amount;
     sprintf(buffer + 2, "%08x", (unsigned int) cell->nb_ants); 
+    for (int i = 0; i < 4; i++)
+    {
+        sprintf(buffer + 10 + 2 * i, "%02x", cell->pheromones[i]);
+    }
 }
 
 MapSettings map_settings_create_default(size_t random_seed)
@@ -107,7 +112,6 @@ cJSON *grid_map_to_json(const GridMap *map)
             it += BYTES_PER_CELL;
         }
     }
-
     cJSON_AddStringToObject(map_json, "cells", cell_data);
     free(cell_data); 
     return map_json;
