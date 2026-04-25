@@ -5,13 +5,16 @@
 #include "utils.h"
 #include <pthread.h>
 #include <unistd.h>
+#include <semaphore.h>
 
 static bool STOP_SIM = false;
+static bool PAUSE_SIM = false;
 static bool EXIT_DEBUGGER = false;
 
 static cJSON* PENDING_NOTIF = NULL;
 static Simulation* SIM = NULL;
 static pthread_t SIM_THREAD;
+sem_t PAUSE_SIM_SEMAPHORE;
 
 void
 send_update()
@@ -38,6 +41,18 @@ simulation_runner(void*)
         }
         send_update();
         usleep(100 * 1000);
+        if (PAUSE_SIM)
+        {
+            cJSON* pause_notif = cJSON_CreateObject(); 
+            cJSON_AddStringToObject(pause_notif, "type", "event"); 
+            cJSON_AddStringToObject(pause_notif, "event", "stopped");
+            cJSON* notif_body = cJSON_AddObjectToObject(pause_notif, "body");
+            cJSON_AddStringToObject(notif_body, "reason", "pause");
+            cJSON_AddBoolToObject(notif_body, "allThreadsStopped", true);
+            cJSON_AddNumberToObject(notif_body, "threadId", 0);
+            send_packet(pause_notif, true);
+            sem_wait(&PAUSE_SIM_SEMAPHORE);
+        }
     }
     simulation_delete(SIM);
     SIM = NULL;
@@ -52,6 +67,7 @@ simulation_runner(void*)
 static 
 cJSON* handle_initialize()
 {
+    sem_init(&PAUSE_SIM_SEMAPHORE, 0, 0);
     //Return the server capabilities
     cJSON* capabilities = cJSON_CreateObject();
     cJSON_AddBoolToObject(capabilities, "supportsTerminateRequest", true);
@@ -66,6 +82,7 @@ cJSON*
 handle_disconnect()
 {
     EXIT_DEBUGGER = true;
+    sem_destroy(&PAUSE_SIM_SEMAPHORE);
     return cJSON_CreateObject();
 }
 
@@ -146,14 +163,7 @@ static
 cJSON*
 handle_pause(const cJSON* /*params*/)
 {
-    PENDING_NOTIF = cJSON_CreateObject(); 
-    cJSON_AddStringToObject(PENDING_NOTIF, "type", "event"); 
-    cJSON_AddStringToObject(PENDING_NOTIF, "event", "stopped");
-    cJSON* notif_body = cJSON_AddObjectToObject(PENDING_NOTIF, "body");
-    cJSON_AddStringToObject(notif_body, "reason", "pause");
-    cJSON_AddBoolToObject(notif_body, "allThreadsStopped", true);
-    cJSON_AddNumberToObject(notif_body, "threadId", 0);
-
+    PAUSE_SIM = true;
     return cJSON_CreateNull();
 }
 
@@ -177,6 +187,8 @@ static
 cJSON*
 handle_continue(const cJSON* /*params*/)
 {
+    PAUSE_SIM = false; 
+    sem_post(&PAUSE_SIM_SEMAPHORE);
     return cJSON_CreateNull();
 }
 
