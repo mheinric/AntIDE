@@ -323,6 +323,13 @@ test_parse_directives(void)
         TEST_ASSERT_TRUE(instruction_equal(expected_inst[i], program_get_instruction(&result.program, i)));
     }
     TEST_ASSERT_EQUAL(0, strcmp("my_tag", program_get_tag_name(&result.program, 1)));
+
+    TEST_ASSERT_EQUAL(0, program_get_instruction_index(&result.program, 4));
+    TEST_ASSERT_EQUAL(0, program_get_instruction_index(&result.program, 3));
+    TEST_ASSERT_EQUAL(1, program_get_instruction_index(&result.program, 5));
+    TEST_ASSERT_EQUAL(4, program_get_source_line(&result.program, 0));
+    TEST_ASSERT_EQUAL(5, program_get_source_line(&result.program, 1));
+
     parse_result_cleanup(&result);
 }
 

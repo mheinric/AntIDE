@@ -384,7 +384,7 @@ parser_read_artihmetic_instruction(
     if (parser_read_register(parser, &tokens[1], &inst.arith_args.target_register) && 
         parser_read_argument(parser, &tokens[2], &inst.arith_args.arg))
     {
-        program_push_instruction(&parser->parse_result.program, inst);
+        program_push_instruction(&parser->parse_result.program, inst, parser->current_line);
     }
 }
 
@@ -406,7 +406,7 @@ parser_read_conditional_jump_instruction(
     {
         return;
     }
-    program_push_instruction(&parser->parse_result.program, instruction_create_conditional_jump(type, value1, value2, target));
+    program_push_instruction(&parser->parse_result.program, instruction_create_conditional_jump(type, value1, value2, target), parser->current_line);
 }
 
 void
@@ -428,7 +428,7 @@ parser_read_info_instruction(Parser *parser,
     {
         return; 
     }
-    program_push_instruction(&parser->parse_result.program, instruction_create_info(type, target_register));
+    program_push_instruction(&parser->parse_result.program, instruction_create_info(type, target_register), parser->current_line);
 }
 
 void
@@ -447,7 +447,7 @@ read_instruction_from_tokens(
         }
         Instruction inst;
         inst.type = INST_PICKUP; 
-        program_push_instruction(&parser->parse_result.program, inst);
+        program_push_instruction(&parser->parse_result.program, inst, parser->current_line);
     }
     else if (token_matches_str(&tokens[0], "DROP"))
     {
@@ -457,7 +457,7 @@ read_instruction_from_tokens(
         }
         Instruction inst;
         inst.type = INST_DROP; 
-        program_push_instruction(&parser->parse_result.program, inst);
+        program_push_instruction(&parser->parse_result.program, inst, parser->current_line);
     }
     else if (token_matches_str(&tokens[0], "MOVE"))
     {
@@ -469,7 +469,7 @@ read_instruction_from_tokens(
         inst.type = INST_MOVE;
         if (parser_read_argument(parser, &tokens[1], &inst.move_args.dir))
         {
-            program_push_instruction(&parser->parse_result.program, inst);
+            program_push_instruction(&parser->parse_result.program, inst, parser->current_line);
         }
     }
     else if (token_matches_str(&tokens[0], "SET"))
@@ -531,7 +531,7 @@ read_instruction_from_tokens(
         {
             return;
         }
-        program_push_instruction(&parser->parse_result.program, instruction_create_jump(target));
+        program_push_instruction(&parser->parse_result.program, instruction_create_jump(target), parser->current_line);
     }
     else if (token_matches_str(&tokens[0], "JEQ"))
     {
@@ -562,7 +562,7 @@ read_instruction_from_tokens(
         {
             return;
         }
-        program_push_instruction(&parser->parse_result.program, instruction_create_call(return_register, target));
+        program_push_instruction(&parser->parse_result.program, instruction_create_call(return_register, target), parser->current_line);
     }
     else if (token_matches_str(&tokens[0], "ID"))
     {
@@ -584,7 +584,7 @@ read_instruction_from_tokens(
         {
             return;
         }
-        program_push_instruction(&parser->parse_result.program, instruction_create_mark(channel, amount));
+        program_push_instruction(&parser->parse_result.program, instruction_create_mark(channel, amount), parser->current_line);
     }
     else if (token_matches_str(&tokens[0], "SNIFF"))
     {
@@ -600,7 +600,7 @@ read_instruction_from_tokens(
         {
             return;
         }
-        program_push_instruction(&parser->parse_result.program, instruction_create_sniff(channel, direction, target_register));
+        program_push_instruction(&parser->parse_result.program, instruction_create_sniff(channel, direction, target_register), parser->current_line);
     }
     else if (token_matches_str(&tokens[0], "SMELL"))
     {
@@ -615,7 +615,7 @@ read_instruction_from_tokens(
         {
             return;
         }
-        program_push_instruction(&parser->parse_result.program, instruction_create_smell(channel, target_register));
+        program_push_instruction(&parser->parse_result.program, instruction_create_smell(channel, target_register), parser->current_line);
     }
     else if (token_matches_str(&tokens[0], "PROBE"))
     {
@@ -630,7 +630,7 @@ read_instruction_from_tokens(
         {
             return;
         }
-        program_push_instruction(&parser->parse_result.program, instruction_create_probe(direction, target_register));
+        program_push_instruction(&parser->parse_result.program, instruction_create_probe(direction, target_register), parser->current_line);
     }
     else if (token_matches_str(&tokens[0], "SENSE"))
     {
@@ -645,7 +645,7 @@ read_instruction_from_tokens(
         {
             return;
         }
-        program_push_instruction(&parser->parse_result.program, instruction_create_sense(entity_type, target_register));
+        program_push_instruction(&parser->parse_result.program, instruction_create_sense(entity_type, target_register), parser->current_line);
     }
     else if (token_matches_str(&tokens[0], "TAG"))
     {
@@ -658,7 +658,7 @@ read_instruction_from_tokens(
         {
             return;
         }
-        program_push_instruction(&parser->parse_result.program, instruction_create_tag(tag_value));
+        program_push_instruction(&parser->parse_result.program, instruction_create_tag(tag_value), parser->current_line);
     }
     else 
     {

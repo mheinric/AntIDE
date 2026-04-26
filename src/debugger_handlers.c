@@ -131,7 +131,10 @@ debugger_handle_get_stack_trace(Debugger* dbg, const cJSON* params)
     cJSON_AddItemToArray(stackFrames, frame);
     cJSON_AddNumberToObject(frame, "id", ant_id);
     cJSON_AddStringToObject(frame, "name", "main");
-    cJSON_AddNumberToObject(frame, "line", 3);
+    Ant* ant = simulation_get_ant(dbg->sim, ant_id);
+    size_t inst_index = (size_t) ant->pc;
+    cJSON_AddNumberToObject(frame, "line", 
+        program_get_source_line(simulation_get_program(dbg->sim), inst_index));
     cJSON_AddNumberToObject(frame, "column", 0);
     cJSON* source_obj = cJSON_AddObjectToObject(frame, "source");
     cJSON_AddStringToObject(source_obj, "path", dbg->program_file_path);
@@ -143,6 +146,16 @@ cJSON*
 debugger_handle_get_scope(Debugger* dbg, const cJSON* params)
 {
     const size_t ant_id = cJSON_GetNumberValue(cJSON_GetObjectItem(params, "frameId"));
+    if (ant_id != dbg->last_stop_ant)
+    {
+        //This is a hack to prevent VSCode from showing the current lines for *all* 
+        //the ants the user clicked on at the same time: 
+        //get_scope is called when the user clicks on the stacktrace for one ant.
+        //by sending this notif, we effectively invalidate the previous stacktrace,
+        //which clears the marker from the view.
+        dbg->last_stop_ant = ant_id; 
+        debugger_send_pause_notif(dbg);
+    }
     cJSON* result = cJSON_CreateObject(); 
     cJSON* scopes_array = cJSON_AddArrayToObject(result, "scopes");
     //Adding a scope for registers
@@ -160,8 +173,8 @@ debugger_handle_get_scope(Debugger* dbg, const cJSON* params)
     cJSON_AddItemToArray(scopes_array, state_scope);
     cJSON_AddStringToObject(state_scope, "name", "State");
     cJSON_AddNumberToObject(state_scope, "variablesReference", ant_id + 1 + simulation_get_nb_ants(dbg->sim));
-    cJSON_AddNumberToObject(reg_scope, "namedVariables", 4);
-    cJSON_AddBoolToObject(reg_scope, "expensive", false);
+    cJSON_AddNumberToObject(state_scope, "namedVariables", 4);
+    cJSON_AddBoolToObject(state_scope, "expensive", false);
 
     return result;
 }
@@ -303,6 +316,15 @@ debugger_handle_set_simulation_speed(Debugger* dbg, const cJSON* params)
     return cJSON_CreateNull();
 }
 
+cJSON *
+debugger_handle_step_out(Debugger *dbg)
+{
+    //By notifying the pause semaphore, the simulation thread will exit pause
+    //for a single step before going back into it;
+    sem_post(&dbg->pause_semaphore);
+    return cJSON_CreateNull();
+}
+
 cJSON* 
 debugger_handle_request(Debugger* dbg, const char* method, const cJSON* params)
 {
@@ -358,6 +380,10 @@ debugger_handle_request(Debugger* dbg, const char* method, const cJSON* params)
     if (strcmp(method, "setSimulationSpeed") == 0)
     {
         return debugger_handle_set_simulation_speed(dbg, params);
+    }
+    if (strcmp(method, "stepOut") == 0)
+    {
+        return debugger_handle_step_out(dbg);
     }
     print_debug("No handler for request:");
     print_debug(method);

@@ -19,3 +19,12 @@ tag_cleanup(Tag* tag);
 #define VECTOR_ITEM_TYPE Tag
 #define VECTOR_ITEM_NAME tag
 #include "internals/vector.h"
+
+typedef struct {
+    size_t line_nb; 
+    size_t inst_index;
+} SourceMap;
+
+#define VECTOR_ITEM_TYPE SourceMap
+#define VECTOR_ITEM_NAME source_map
+#include "internals/vector.h"

@@ -19,6 +19,7 @@ debugger_init(Debugger* debugger)
     debugger->sim = NULL; 
 
     sem_init(&debugger->pause_semaphore, 0, 0);
+    debugger->last_stop_ant = 0;
 }
 
 
@@ -57,7 +58,8 @@ debugger_send_update(Debugger* dbg)
     send_packet(notif, false);
 }
 
-void debugger_pause_sim(Debugger* dbg)
+void 
+debugger_send_pause_notif(Debugger* dbg)
 {
     cJSON* pause_notif = cJSON_CreateObject(); 
     cJSON_AddStringToObject(pause_notif, "type", "event"); 
@@ -65,8 +67,13 @@ void debugger_pause_sim(Debugger* dbg)
     cJSON* notif_body = cJSON_AddObjectToObject(pause_notif, "body");
     cJSON_AddStringToObject(notif_body, "reason", "pause");
     cJSON_AddBoolToObject(notif_body, "allThreadsStopped", true);
-    cJSON_AddNumberToObject(notif_body, "threadId", 0);
+    cJSON_AddNumberToObject(notif_body, "threadId", dbg->last_stop_ant);
     send_packet(pause_notif, true);
+}
+
+void debugger_pause_sim(Debugger* dbg)
+{
+    debugger_send_pause_notif(dbg);
     sem_wait(&dbg->pause_semaphore);
 }
 

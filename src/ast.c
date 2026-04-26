@@ -252,6 +252,8 @@ program_init(Program *program)
     vector_instruction_init(program->instructions);
     program->tags = calloc(1, sizeof(VectorTag)); 
     vector_tag_init(program->tags);
+    program->source_map = calloc(1, sizeof(VectorSourceMap));
+    vector_source_map_init(program->source_map);
 }
 
 void 
@@ -261,6 +263,8 @@ program_init_move(Program *target, Program *source)
     vector_instruction_init_move(target->instructions, source->instructions);
     target->tags = calloc(1, sizeof(VectorTag));
     vector_tag_init_move(target->tags, source->tags);
+    target->source_map = calloc(1, sizeof(VectorSourceMap));
+    vector_source_map_init_move(target->source_map, source->source_map);
 }
 
 void 
@@ -276,6 +280,9 @@ program_cleanup(Program *program)
     vector_tag_cleanup(program->tags);
     free(program->tags);
     program->tags = NULL;
+    vector_source_map_cleanup(program->source_map);
+    free(program->source_map);
+    program->source_map = NULL;
 }
 
 uint64_t
@@ -291,9 +298,11 @@ program_get_instruction(const Program *program, size_t index)
 }
 
 void 
-program_push_instruction(Program *program, Instruction instruction)
+program_push_instruction(Program *program, Instruction instruction, size_t line_nb)
 {
+    size_t inst_index = vector_instruction_size(program->instructions);
     vector_instruction_push(program->instructions, instruction);
+    vector_source_map_push(program->source_map, (SourceMap) { .inst_index = inst_index, .line_nb = line_nb });
 }
 
 void program_add_tag(Program *program, uint8_t tag_id, const char *tag_name)
@@ -304,7 +313,7 @@ void program_add_tag(Program *program, uint8_t tag_id, const char *tag_name)
 }
 
 const char*
-program_get_tag_name(Program *program, uint8_t tag_id)
+program_get_tag_name(const Program *program, uint8_t tag_id)
 {
     for (Tag* it = program->tags->begin; it != program->tags->end; it++)
     {
@@ -314,4 +323,36 @@ program_get_tag_name(Program *program, uint8_t tag_id)
         }
     }
     return "";
+}
+
+size_t 
+program_get_source_line(const Program *program, size_t instruction_index)
+{
+    for (SourceMap* it = program->source_map->begin; it != program->source_map->end; it++)
+    {
+        if (it->inst_index == instruction_index)
+        {
+            return it->line_nb;
+        }
+    }
+    return 0;
+}
+
+size_t 
+program_get_instruction_index(const Program *program, size_t line_nb)
+{
+    size_t last_index = 0;
+    for (SourceMap* it = program->source_map->begin; it != program->source_map->end; it++)
+    {
+        if (it->line_nb == line_nb)
+        {
+            return it->inst_index;
+        }
+        last_index = it->inst_index; 
+        if (it->line_nb > line_nb)
+        {
+            break;
+        }
+    }
+    return last_index;
 }

@@ -153,10 +153,12 @@ instruction_equal(Instruction first, Instruction second);
 
 typedef struct VectorInstruction VectorInstruction;
 typedef struct VectorTag VectorTag;
+typedef struct VectorSourceMap VectorSourceMap;
 
 typedef struct {
     VectorInstruction* instructions;
     VectorTag* tags;
+    VectorSourceMap* source_map;
 } Program;
 
 void 
@@ -175,10 +177,16 @@ Instruction
 program_get_instruction(const Program *program, size_t index);
 
 void
-program_push_instruction(Program *program, Instruction instruction);
+program_push_instruction(Program *program, Instruction instruction, size_t line_nb);
 
 void
 program_add_tag(Program* program, uint8_t tag_id, const char* tag_name);
 
 const char*
-program_get_tag_name(Program *program, uint8_t tag_id);
+program_get_tag_name(const Program *program, uint8_t tag_id);
+
+size_t 
+program_get_source_line(const Program *program, size_t instruction_index);
+
+size_t 
+program_get_instruction_index(const Program *program, size_t line_nb);

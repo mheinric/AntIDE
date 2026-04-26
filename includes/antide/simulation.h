@@ -46,6 +46,9 @@ simulation_to_json(Simulation *sim);
 void
 simulation_run_step(Simulation *sim);
 
+const Program*
+simulation_get_program(const Simulation* sim);
+
 size_t 
 simulation_get_step_number(Simulation* sim);
 

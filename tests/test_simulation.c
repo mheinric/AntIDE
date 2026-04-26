@@ -330,7 +330,7 @@ test_simulation_id(void)
 {
     Program prog; 
     program_init(&prog);
-    program_push_instruction(&prog, instruction_create_info(INST_ID, 0));
+    program_push_instruction(&prog, instruction_create_info(INST_ID, 0), 0);
     SimulationSettings settings = simulation_settings_create_test();
     settings.nb_ants = 10;
     GridMap map; 
@@ -452,7 +452,7 @@ test_simulation_sense_ants(void)
 {
     Program prog; 
     program_init(&prog);
-    program_push_instruction(&prog, instruction_create_sense(argument_create_value(ENT_ANT), 0));
+    program_push_instruction(&prog, instruction_create_sense(argument_create_value(ENT_ANT), 0), 0);
     SimulationSettings settings = simulation_settings_create_test();
     settings.nb_ants = 2;
     GridMap map; 
