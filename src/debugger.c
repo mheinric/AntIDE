@@ -164,6 +164,8 @@ handle_terminate(const cJSON* /*params*/)
     // Stop the simulation, but don't stop the debugger
     // Note: there is a 'restart' param if we want to restart the simulation from the start that needs to be accounted for
     STOP_SIM = true;
+    PAUSE_SIM = false; 
+    sem_post(&PAUSE_SIM_SEMAPHORE);
     return cJSON_CreateNull();
 }
 
