@@ -22,3 +22,6 @@ debugger_init(Debugger* debugger);
 
 void
 debugger_cleanup(Debugger* debugger);
+
+void* 
+debugger_simulation_runner(void* arg);
