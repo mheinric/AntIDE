@@ -9,3 +9,6 @@
 #include <assert.h>
 
 #define ANTIDE_ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
+
+//Upper bound on the number of characters necessary to represent a 32 bits signed int (including terminating null char)
+#define MAX_DIGITS_32BITS 15

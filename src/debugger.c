@@ -11,6 +11,7 @@ static bool STOP_SIM = false;
 static bool PAUSE_SIM = false;
 static bool EXIT_DEBUGGER = false;
 
+static char* PROGRAM_FILE_PATH = NULL;
 static cJSON* PENDING_NOTIF = NULL;
 static Simulation* SIM = NULL;
 static pthread_t SIM_THREAD;
@@ -97,13 +98,13 @@ static
 cJSON*
 handle_launch(const cJSON* params)
 {
-    const char* filename = cJSON_GetStringValue(cJSON_GetObjectItem(params, "program"));
-    if (filename == NULL)
+    PROGRAM_FILE_PATH = strdup(cJSON_GetStringValue(cJSON_GetObjectItem(params, "program")));
+    if (PROGRAM_FILE_PATH == NULL)
     {
         print_debug("handle_launch: No filename field in input params");
         goto launch_error;
     }
-    ParseResult result = parse_program_from_file(filename);
+    ParseResult result = parse_program_from_file(PROGRAM_FILE_PATH);
     if (parse_result_nb_errors(&result) > 0)
     {
         print_debug("handle_launch: Failed to parse program");
@@ -166,6 +167,8 @@ handle_terminate(const cJSON* /*params*/)
     STOP_SIM = true;
     PAUSE_SIM = false; 
     sem_post(&PAUSE_SIM_SEMAPHORE);
+    if (PROGRAM_FILE_PATH) free(PROGRAM_FILE_PATH);
+    PROGRAM_FILE_PATH = NULL;
     return cJSON_CreateNull();
 }
 
@@ -179,18 +182,143 @@ handle_pause(const cJSON* /*params*/)
 
 static
 cJSON*
-handle_get_stack_trace(const cJSON* /*params*/)
+handle_get_stack_trace(const cJSON* params)
 {
+    size_t ant_id = cJSON_GetNumberValue(cJSON_GetObjectItem(params, "threadId"));
     cJSON* result = cJSON_CreateObject(); 
     cJSON_AddNumberToObject(result, "totalFrames", 1);
     cJSON* stackFrames = cJSON_AddArrayToObject(result, "stackFrames");
     cJSON* frame = cJSON_CreateObject(); 
     cJSON_AddItemToArray(stackFrames, frame);
-    cJSON_AddNumberToObject(frame, "id", 0);
+    cJSON_AddNumberToObject(frame, "id", ant_id);
     cJSON_AddStringToObject(frame, "name", "main");
-    cJSON_AddNumberToObject(frame, "line", 0);
+    cJSON_AddNumberToObject(frame, "line", 3);
     cJSON_AddNumberToObject(frame, "column", 0);
+    cJSON* source_obj = cJSON_AddObjectToObject(frame, "source");
+    cJSON_AddStringToObject(source_obj, "path", PROGRAM_FILE_PATH);
+
     return result;
+}
+
+static 
+cJSON* 
+handle_get_scope(const cJSON* params)
+{
+    const size_t ant_id = cJSON_GetNumberValue(cJSON_GetObjectItem(params, "frameId"));
+    cJSON* result = cJSON_CreateObject(); 
+    cJSON* scopes_array = cJSON_AddArrayToObject(result, "scopes");
+    //Adding a scope for registers
+    cJSON* reg_scope = cJSON_CreateObject(); 
+    cJSON_AddItemToArray(scopes_array, reg_scope);
+    cJSON_AddStringToObject(reg_scope, "name", "Registers");
+    cJSON_AddStringToObject(reg_scope, "presentationHint", "registers");
+    //Note: variablesReference should start at 1, because 0 means 'there is no variable'.
+    cJSON_AddNumberToObject(reg_scope, "variablesReference", ant_id + 1);
+    cJSON_AddNumberToObject(reg_scope, "namedVariables", 9);
+    cJSON_AddBoolToObject(reg_scope, "expensive", false);
+
+    //Adding a scope for the state of the ant
+    cJSON* state_scope = cJSON_CreateObject(); 
+    cJSON_AddItemToArray(scopes_array, state_scope);
+    cJSON_AddStringToObject(state_scope, "name", "State");
+    cJSON_AddNumberToObject(state_scope, "variablesReference", ant_id + 1 + simulation_get_nb_ants(SIM));
+    cJSON_AddNumberToObject(reg_scope, "namedVariables", 4);
+    cJSON_AddBoolToObject(reg_scope, "expensive", false);
+
+    return result;
+}
+
+static
+void 
+debugger_add_int_variable(cJSON* var_array, const char* var_name, int32_t var_value)
+{
+    cJSON* var_data = cJSON_CreateObject(); 
+    cJSON_AddItemToArray(var_array, var_data);
+    cJSON_AddStringToObject(var_data, "name", var_name);
+    char value_string[MAX_DIGITS_32BITS]; //Sufficient to write any 32-bit signed number.
+    snprintf(value_string, sizeof(value_string), "%d", var_value);
+    cJSON_AddStringToObject(var_data, "value", value_string);
+    cJSON_AddNumberToObject(var_data, "variablesReference", 0);
+}
+
+static 
+void 
+debugger_add_string_variable(cJSON* var_array, const char* var_name, const char* var_value)
+{
+    cJSON* var_data = cJSON_CreateObject(); 
+    cJSON_AddItemToArray(var_array, var_data);
+    cJSON_AddStringToObject(var_data, "name", var_name);
+    cJSON_AddStringToObject(var_data, "value", var_value);
+    cJSON_AddNumberToObject(var_data, "variablesReference", 0);
+}
+
+static 
+cJSON*
+debugger_get_registers(size_t ant_id)
+{
+    if (ant_id >= simulation_get_nb_ants(SIM))
+    {
+        print_debug("Error: Ant id out of range");
+        return NULL;
+    }
+    Ant* ant = simulation_get_ant(SIM, ant_id);
+    cJSON* resp = cJSON_CreateObject(); 
+    cJSON* var_array = cJSON_AddArrayToObject(resp, "variables");
+
+    //Program counter register
+    debugger_add_int_variable(var_array, "pc", ant->pc);
+
+    //The other registers
+    for (int i = 0; i < 8; i++)
+    {
+        char reg_name[3];
+        reg_name[0] = 'r';
+        reg_name[1] = '0' + i;
+        reg_name[2] = 0;
+        debugger_add_int_variable(var_array, reg_name, ant->registers[i]);
+    }
+    return resp;
+}
+
+static 
+cJSON*
+debugger_get_state(size_t ant_id)
+{
+    if (ant_id >= simulation_get_nb_ants(SIM))
+    {
+        print_debug("Error: Ant id out of range");
+        return NULL;
+    }
+    Ant* ant = simulation_get_ant(SIM, ant_id);
+    cJSON* resp = cJSON_CreateObject(); 
+    cJSON* var_array = cJSON_AddArrayToObject(resp, "variables");
+
+    debugger_add_int_variable(var_array, "id", (int32_t) ant->id);
+    char pos_str[MAX_DIGITS_32BITS * 2 + 10];
+    snprintf(pos_str, sizeof(pos_str), "x = %d, y = %d", (int32_t) ant->position.x, (int32_t) ant->position.y);
+    debugger_add_string_variable(var_array, "position", pos_str);
+    debugger_add_int_variable(var_array, "carrying", ant->carrying_food);
+    debugger_add_string_variable(var_array, "tag", simulation_get_tag_name(SIM, ant->tag));
+
+    return resp;
+}
+
+
+static 
+cJSON* 
+handle_get_variables(const cJSON* params)
+{
+    //Note: -1 because variablesReference start counting at 1.
+    const size_t var_refs = cJSON_GetNumberValue(cJSON_GetObjectItem(params, "variablesReference"));
+
+    if (var_refs <= simulation_get_nb_ants(SIM))
+    {
+        return debugger_get_registers(var_refs - 1);
+    }
+    else
+    {
+        return debugger_get_state(var_refs - simulation_get_nb_ants(SIM) - 1);
+    }
 }
 
 static
@@ -242,6 +370,14 @@ handle_request(const char* method, const cJSON* params)
     if (strcmp(method, "stackTrace") == 0)
     {
         return handle_get_stack_trace(params);
+    }
+    if (strcmp(method, "scopes") == 0)
+    {
+        return handle_get_scope(params);
+    }
+    if (strcmp(method, "variables") == 0)
+    {
+        return handle_get_variables(params);
     }
     if (strcmp(method, "continue") == 0)
     {
