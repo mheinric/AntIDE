@@ -487,12 +487,26 @@ simulation_get_neighbor_cell(Simulation *sim, Position pos, Direction dir)
     return simulation_get_cell(sim, pos);
 }
 
-Ant *simulation_get_ant(Simulation *sim, int32_t id)
+size_t 
+simulation_get_nb_ants(Simulation *sim)
+{
+    return sim->settings.nb_ants;
+}
+
+Ant*
+simulation_get_ant(Simulation *sim, int32_t id)
 {
     return &sim->ants[id];
 }
 
-void simulation_set_ant_position(Simulation *sim, Ant *ant, Position new_pos)
+const char*
+simulation_get_tag_name(Simulation *sim, uint8_t tag_id)
+{
+    return program_get_tag_name(&sim->program, tag_id);
+}
+
+void 
+simulation_set_ant_position(Simulation *sim, Ant *ant, Position new_pos)
 {
     Cell *old_cell = simulation_get_cell(sim, ant->position);
     assert(old_cell->nb_ants > 0);

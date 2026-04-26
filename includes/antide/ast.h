@@ -152,9 +152,11 @@ bool
 instruction_equal(Instruction first, Instruction second);
 
 typedef struct VectorInstruction VectorInstruction;
+typedef struct VectorTag VectorTag;
 
 typedef struct {
     VectorInstruction* instructions;
+    VectorTag* tags;
 } Program;
 
 void 
@@ -167,10 +169,16 @@ void
 program_cleanup(Program *program);
 
 uint64_t
-program_size(Program *program);
+program_size(const Program *program);
 
 Instruction
-program_get_instruction(Program *program, size_t index);
+program_get_instruction(const Program *program, size_t index);
 
 void
 program_push_instruction(Program *program, Instruction instruction);
+
+void
+program_add_tag(Program* program, uint8_t tag_id, const char* tag_name);
+
+const char*
+program_get_tag_name(Program *program, uint8_t tag_id);

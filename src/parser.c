@@ -710,6 +710,9 @@ parser_read_directive(Parser* parser)
         entry.name = arg2; 
         entry.value = parsed_arg;
         vector_constant_entry_push(&parser->constants, entry);
+        char* tag_name = strndup(arg2.begin, arg2.end - arg2.begin);
+        program_add_tag(&parser->parse_result.program, parsed_arg.value, tag_name); 
+        free(tag_name);
     }
     else
     {

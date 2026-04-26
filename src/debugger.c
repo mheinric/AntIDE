@@ -143,9 +143,17 @@ handle_list_threads()
 {
     cJSON* resp = cJSON_CreateObject();
     cJSON* thread_list = cJSON_AddArrayToObject(resp, "threads");
-    cJSON* thread_item = cJSON_CreateObject();
-    cJSON_AddItemToArray(thread_list, thread_item); 
-    cJSON_AddNumberToObject(thread_item, "id", 0);
+    for (size_t i = 0; i < simulation_get_nb_ants(SIM); i++)
+    {
+        cJSON* thread_item = cJSON_CreateObject();
+        cJSON_AddItemToArray(thread_list, thread_item); 
+        cJSON_AddNumberToObject(thread_item, "id", i);
+        Ant* ant = simulation_get_ant(SIM, i);
+        char thread_name[100];
+        const char* tag = simulation_get_tag_name(SIM, ant->tag);
+        snprintf(thread_name, 100, "%zd %s", i, tag);
+        cJSON_AddStringToObject(thread_item, "name", thread_name);
+    }
     return resp;
 }
 

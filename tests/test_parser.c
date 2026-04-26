@@ -322,6 +322,7 @@ test_parse_directives(void)
     {
         TEST_ASSERT_TRUE(instruction_equal(expected_inst[i], program_get_instruction(&result.program, i)));
     }
+    TEST_ASSERT_EQUAL(0, strcmp("my_tag", program_get_tag_name(&result.program, 1)));
     parse_result_cleanup(&result);
 }
 

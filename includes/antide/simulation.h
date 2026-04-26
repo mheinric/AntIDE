@@ -58,8 +58,14 @@ simulation_get_cell(Simulation* sim, Position pos);
 Cell* 
 simulation_get_neighbor_cell(Simulation* sim, Position pos, Direction dir);
 
+size_t
+simulation_get_nb_ants(Simulation *sim);
+
 Ant* 
 simulation_get_ant(Simulation *sim, int32_t id);
+
+const char*
+simulation_get_tag_name(Simulation *sim, uint8_t tag_id);
 
 void
 simulation_set_ant_position(Simulation *sim, Ant *ant, Position new_pos);

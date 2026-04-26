@@ -1,6 +1,18 @@
 #include "ast_private.h"
 #include "ast.h"
 
+void tag_init(Tag *tag, uint8_t id, const char *name)
+{
+    tag->id = id; 
+    tag->name = strdup(name);
+}
+
+void
+tag_cleanup(Tag* tag)
+{
+    free(tag->name);
+}
+
 bool 
 direction_is_valid(int32_t dir_value)
 {
@@ -238,6 +250,8 @@ program_init(Program *program)
 {
     program->instructions = calloc(1, sizeof(VectorInstruction));
     vector_instruction_init(program->instructions);
+    program->tags = calloc(1, sizeof(VectorTag)); 
+    vector_tag_init(program->tags);
 }
 
 void 
@@ -245,6 +259,8 @@ program_init_move(Program *target, Program *source)
 {
     target->instructions = calloc(1, sizeof(VectorInstruction));
     vector_instruction_init_move(target->instructions, source->instructions);
+    target->tags = calloc(1, sizeof(VectorTag));
+    vector_tag_init_move(target->tags, source->tags);
 }
 
 void 
@@ -253,16 +269,23 @@ program_cleanup(Program *program)
     vector_instruction_cleanup(program->instructions);
     free(program->instructions);
     program->instructions = NULL;
+    for (Tag* it = program->tags->begin; it != program->tags->end; it++)
+    {
+        tag_cleanup(it);
+    }
+    vector_tag_cleanup(program->tags);
+    free(program->tags);
+    program->tags = NULL;
 }
 
 uint64_t
-program_size(Program * program)
+program_size(const Program * program)
 {
     return vector_instruction_size(program->instructions);
 }
 
 Instruction 
-program_get_instruction(Program *program, size_t index)
+program_get_instruction(const Program *program, size_t index)
 {
     return program->instructions->begin[index];
 }
@@ -271,4 +294,24 @@ void
 program_push_instruction(Program *program, Instruction instruction)
 {
     vector_instruction_push(program->instructions, instruction);
+}
+
+void program_add_tag(Program *program, uint8_t tag_id, const char *tag_name)
+{
+    Tag tag; 
+    tag_init(&tag, tag_id, tag_name); 
+    vector_tag_push(program->tags, tag);
+}
+
+const char*
+program_get_tag_name(Program *program, uint8_t tag_id)
+{
+    for (Tag* it = program->tags->begin; it != program->tags->end; it++)
+    {
+        if (it->id == tag_id)
+        {
+            return it->name;
+        }
+    }
+    return "";
 }
