@@ -8,6 +8,9 @@
 #include <string.h>
 #include <assert.h>
 #include <time.h>
+#include <pthread.h>
+#include <unistd.h>
+#include <semaphore.h>
 
 #define ANTIDE_ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
 
