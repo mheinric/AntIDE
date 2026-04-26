@@ -7,6 +7,7 @@
 #include <unistd.h>
 #include <semaphore.h>
 
+static int SIM_SPEED = 1;
 static bool STOP_SIM = false;
 static bool PAUSE_SIM = false;
 static bool EXIT_DEBUGGER = false;
@@ -26,13 +27,37 @@ send_update()
     "}");
     assert(notif != NULL);
     cJSON* sim_state = simulation_to_json(SIM);
-    cJSON_AddItemToObject(cJSON_AddObjectToObject(notif, "body"), "simulation", sim_state);
+    cJSON* notif_body = cJSON_AddObjectToObject(notif, "body");
+    cJSON_AddItemToObject(notif_body, "simulation", sim_state);
+    const char* sim_speed_str = SIM_SPEED == 1 ? "x1" : 
+        SIM_SPEED == 2 ? "x2" : 
+        SIM_SPEED == 5 ? "x5" : 
+        SIM_SPEED == 10 ? "x10" : 
+        SIM_SPEED == -1 ? "xMax" : 
+        "x1";
+    cJSON_AddStringToObject(notif_body, "speed", sim_speed_str);
     send_packet(notif, false);
+}
+
+void debugger_pause_sim()
+{
+    cJSON* pause_notif = cJSON_CreateObject(); 
+    cJSON_AddStringToObject(pause_notif, "type", "event"); 
+    cJSON_AddStringToObject(pause_notif, "event", "stopped");
+    cJSON* notif_body = cJSON_AddObjectToObject(pause_notif, "body");
+    cJSON_AddStringToObject(notif_body, "reason", "pause");
+    cJSON_AddBoolToObject(notif_body, "allThreadsStopped", true);
+    cJSON_AddNumberToObject(notif_body, "threadId", 0);
+    send_packet(pause_notif, true);
+    sem_wait(&PAUSE_SIM_SEMAPHORE);
 }
 
 void* 
 simulation_runner(void*) 
 {
+    time_t last_sent_update; 
+    time(&last_sent_update);
+    send_update();
     for (size_t i = 0; i < 2000; i++)
     {
         simulation_run_step(SIM);
@@ -40,21 +65,41 @@ simulation_runner(void*)
         {
             break;
         }
-        send_update();
-        usleep(100 * 1000);
+        if (SIM_SPEED < 0)
+        {
+            time_t now; 
+            time(&now); 
+            if (now - last_sent_update > 0.1)
+            {
+                last_sent_update = now;
+                send_update();
+            }
+        }
+        else if (simulation_get_step_number(SIM) % SIM_SPEED == 0)
+        {
+            time_t now;
+            time(&now);
+            double diff_time = now - last_sent_update;
+            last_sent_update = now;
+            send_update();
+            if (diff_time < 0.1)
+            {
+                usleep((0.1 - diff_time) * 1000 * 1000);
+            }
+        }
         if (PAUSE_SIM)
         {
-            cJSON* pause_notif = cJSON_CreateObject(); 
-            cJSON_AddStringToObject(pause_notif, "type", "event"); 
-            cJSON_AddStringToObject(pause_notif, "event", "stopped");
-            cJSON* notif_body = cJSON_AddObjectToObject(pause_notif, "body");
-            cJSON_AddStringToObject(notif_body, "reason", "pause");
-            cJSON_AddBoolToObject(notif_body, "allThreadsStopped", true);
-            cJSON_AddNumberToObject(notif_body, "threadId", 0);
-            send_packet(pause_notif, true);
-            sem_wait(&PAUSE_SIM_SEMAPHORE);
+            debugger_pause_sim();
         }
     }
+
+    if (!STOP_SIM)
+    {
+        send_update();
+        PAUSE_SIM = true; 
+        debugger_pause_sim();
+    }
+
     simulation_delete(SIM);
     SIM = NULL;
 
@@ -94,6 +139,10 @@ handle_set_breakpoints(const cJSON* /*params*/)
     return cJSON_CreateObject();
 }
 
+static
+cJSON*
+handle_set_simulation_speed(const cJSON* params);
+
 static 
 cJSON*
 handle_launch(const cJSON* params)
@@ -116,6 +165,16 @@ handle_launch(const cJSON* params)
     GridMap map; 
     grid_map_init(&map, map_settings_create_default(42));
     SIM = simulation_create(simulation_settings_create_default(42), prog, map);
+
+    const char* sim_speed = cJSON_GetStringValue(cJSON_GetObjectItem(params, "simulationSpeed"));
+    if (sim_speed != NULL)
+    {
+        cJSON* sim_speed_arg = cJSON_CreateObject();
+        cJSON_AddStringToObject(sim_speed_arg, "speed", sim_speed); 
+        cJSON* resp = handle_set_simulation_speed(sim_speed_arg);
+        cJSON_free(sim_speed_arg);
+        if (resp) cJSON_free(resp); 
+    }
 
     //Prepare the Initialized notification that will be sent after the response has been sent.
     PENDING_NOTIF = cJSON_CreateObject(); 
@@ -308,11 +367,11 @@ static
 cJSON* 
 handle_get_variables(const cJSON* params)
 {
-    //Note: -1 because variablesReference start counting at 1.
     const size_t var_refs = cJSON_GetNumberValue(cJSON_GetObjectItem(params, "variablesReference"));
-
+    
     if (var_refs <= simulation_get_nb_ants(SIM))
     {
+        //Note: -1 because variablesReference start counting at 1.
         return debugger_get_registers(var_refs - 1);
     }
     else
@@ -327,6 +386,45 @@ handle_continue(const cJSON* /*params*/)
 {
     PAUSE_SIM = false; 
     sem_post(&PAUSE_SIM_SEMAPHORE);
+    return cJSON_CreateNull();
+}
+
+static 
+cJSON*
+handle_set_simulation_speed(const cJSON* params)
+{
+    const char* new_value = cJSON_GetStringValue(cJSON_GetObjectItem(params, "speed"));
+    if (new_value == NULL)
+    {
+        print_debug("Missing argument 'speed' to setSimulationSpeed request");
+        return NULL;
+    }
+    if (strcmp(new_value, "x1") == 0)
+    {
+        SIM_SPEED = 1;
+    }
+    else if (strcmp(new_value, "x2") == 0)
+    {
+        SIM_SPEED = 2;
+    }
+    else if (strcmp(new_value, "x5") == 0)
+    {
+        SIM_SPEED = 5;
+    }
+    else if (strcmp(new_value, "x10") == 0)
+    {
+        SIM_SPEED = 10;
+    }
+    else if (strcmp(new_value, "xMax") == 0)
+    {
+        SIM_SPEED = -1;
+    }
+    else
+    {
+        print_debug("Invalid argument value 'speed' to setSimulationSpeed request");
+        print_debug(new_value);
+        return NULL;
+    }
     return cJSON_CreateNull();
 }
 
@@ -382,6 +480,10 @@ handle_request(const char* method, const cJSON* params)
     if (strcmp(method, "continue") == 0)
     {
         return handle_continue(params);
+    }
+    if (strcmp(method, "setSimulationSpeed") == 0)
+    {
+        return handle_set_simulation_speed(params);
     }
     print_debug("No handler for request:");
     print_debug(method);

@@ -18,6 +18,14 @@
 		<button class="pheroButton" id="blueChanButton">B</button>
 		<button class="pheroButton" id="greenChanButton">G</button>
 		<button class="pheroButton" id="yellowChanButton">Y</button>
+		<span id="speedSelection">Speed:
+			<input type="radio" name="speed" id="speedButtonx1" value="x1" checked><label for="speedButtonx1">x1</label>
+			<input type="radio" name="speed" id="speedButtonx2" value="x2"><label for="speedButtonx2">x2</label>
+			<input type="radio" name="speed" id="speedButtonx5" value="x5"><label for="speedButtonx5">x5</label>
+			<input type="radio" name="speed" id="speedButtonx10" value="x10"><label for="speedButtonx10">x10</label>
+			<input type="radio" name="speed" id="speedButtonxMax" value="xMax"><label for="speedButtonxMax">xMax</label>
+		</span>
+
 		<button id="refreshPageButton">Refresh</button>
 
 	</div>
@@ -76,7 +84,7 @@
 		font-weight: bold;
 		border: 1px solid #333;
 		cursor: pointer;
-		color: white;
+		color: black;
 		filter: grayscale(80%);
 	}
 
@@ -108,6 +116,27 @@
 		display: none;
 	}
 
+	#speedSelection input {
+		display: none; 
+	}
+
+	#speedSelection label {
+		border: 1px solid black;
+		padding: 2px;
+		border-radius: 3px;
+		background-color: #DDD;
+		cursor: pointer;
+	}
+
+	#speedSelection input:checked+label {
+		background: rgb(152, 214, 152);
+		font-weight: bold;
+	}
+
+	#speedSelection {
+		margin-left: 10px;
+	}
+
 	#refreshPageButton {
 		margin-left: 20px;
 	}
@@ -129,7 +158,10 @@ const pheromoneButtons = [
 	greenChanButton,
 	yellowChanButton,
 ];
+const speedInputs = document.querySelectorAll("#speedSelection input");
 const refreshPageButton = document.getElementById("refreshPageButton");
+
+
 var simData = null;
 var cellSize = -1;
 
@@ -170,6 +202,17 @@ worldGrid.addEventListener("mousemove", (event) => {
 	}
 });
 
+for (let speedInput of speedInputs)
+{
+	speedInput.onclick = () => {
+		vscode.postMessage({
+			command: 'setSimulationSpeed',
+			payload: {
+				speed: speedInput.value,
+			}
+		});
+	};
+}
 
 function getCellColor(cell) {
 	if (cell.type == 0)
@@ -287,6 +330,13 @@ window.addEventListener('message', event => {
 	{
 		simData = parseData(event.data.data);
 		updateGrid();
+		for (let speedInput of speedInputs)
+		{
+			if (speedInput.value == simData.speed)
+			{
+				speedInput.checked = true;
+			}
+		}
 	}
 });
 </script>

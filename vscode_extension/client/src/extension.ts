@@ -19,13 +19,14 @@ function getGridWebviewContent(context: vscode.ExtensionContext) {
 let client: LanguageClient;
 
 export function activate(context: ExtensionContext) {
-	// The server is implemented in node
+
+	var lastSimData:any = null;
+	var lastSimSpeed:any = "x1";
+
 	const serverPath = context.asAbsolutePath(
 		path.join('..', 'bin', 'antide')
 	);
 
-	// If the extension is launched in debug mode then the debug server options are used
-	// Otherwise the run options are used
 	const serverOptions: ServerOptions = { 
 		command: serverPath, 
 		args: ["lsp", "--stdio"],
@@ -50,7 +51,7 @@ export function activate(context: ExtensionContext) {
 		clientOptions
 	);
 
-	// Start the client. This will also launch the server
+	// Start the client. This will also launch the LSP server
 	client.start();
 
 	const debuggerPath = context.asAbsolutePath(
@@ -77,7 +78,8 @@ export function activate(context: ExtensionContext) {
                         type: 'antide-debug',
                         name: 'Launch Antide',
                         request: 'launch',
-                        program: '${file}'
+                        program: '${file}',
+						simulationSpeed: lastSimSpeed,
                     }
                 ];
             },
@@ -92,6 +94,7 @@ export function activate(context: ExtensionContext) {
                         config.program = '${file}';
                     }
                 }
+				config.simulationSpeed = lastSimSpeed;
 
                 if (!config.program) {
                     return vscode.window.showInformationMessage(`Cannot find a program to debug ${JSON.stringify(config)}`).then(_ => {
@@ -104,7 +107,6 @@ export function activate(context: ExtensionContext) {
         })
     );
 	var grid_panel:any = null;
-	var lastSimData:any = null;
 
 	context.subscriptions.push(
 		vscode.debug.onDidReceiveDebugSessionCustomEvent(event => {
@@ -125,11 +127,21 @@ export function activate(context: ExtensionContext) {
 					grid_panel.webview.onDidReceiveMessage((message:any) => {
 						if (message.command == "refreshPage") {
 							grid_panel.webview.html = getGridWebviewContent(context); 
+							grid_panel.webview.postMessage({
+								command: 'gridContent',
+								data: lastSimData
+							});
 						}
-						grid_panel.webview.postMessage({
-							command: 'gridContent',
-							data: lastSimData
-						});
+						const session = vscode.debug.activeDebugSession;
+						if (!session)
+						{
+							return;
+						}
+						if (message.command == "setSimulationSpeed")
+						{
+							lastSimSpeed = message.payload.speed;
+							session.customRequest('setSimulationSpeed', message.payload);
+						}
 					});
 				}
 				lastSimData = event.body;
