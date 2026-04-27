@@ -50,6 +50,8 @@ simulation_create(SimulationSettings settings, Program prog, GridMap map)
     Simulation* sim = calloc(1, sizeof(Simulation));
     sim->settings = settings;
     sim->step_number = 0;
+    sim->next_ant_id = 0; 
+    sim->step_started = false;
     sim->ants = calloc(settings.nb_ants, sizeof(Ant));
 
     for (size_t i = 0; i < settings.nb_ants; i++)
@@ -432,24 +434,53 @@ simulation_ant_run_step(Simulation *sim, Ant *ant)
 
 void simulation_run_step(Simulation *sim)
 {
-    sim->step_number++;
-    // Decay the pheromones
-    for (Cell* it = sim->map.cells; it != sim->map.cells + sim->map.width * sim->map.height; it++)
+    do {
+        simulation_run_single_instruction(sim);
+    } while(sim->step_started);
+}
+
+void simulation_run_single_instruction(Simulation *sim)
+{
+    if (!sim->step_started)
     {
-        for (int i = 0; i < 4; i++)
+        sim->step_started = true;
+        sim->step_number++;
+        // Decay the pheromones
+        for (Cell* it = sim->map.cells; it != sim->map.cells + sim->map.width * sim->map.height; it++)
         {
-            if (it->pheromones[i] > 0)
+            for (int i = 0; i < 4; i++)
             {
-                it->pheromones[i]--;
+                if (it->pheromones[i] > 0)
+                {
+                    it->pheromones[i]--;
+                }
             }
+        }
+        //Reset instruction budget for all ants
+        for (size_t i = 0; i < sim->settings.nb_ants; i++)
+        {
+            sim->ants[i].instruction_budget = 64;
         }
     }
 
-    // Simulate the ants
-    for (size_t i = 0; i < sim->settings.nb_ants; i++)
+    Ant* ant = simulation_get_ant(sim, sim->next_ant_id);
+    if (ant->pc >= 0 && (size_t) ant->pc < program_size(&sim->program))
     {
-        sim->ants[i].instruction_budget = 64;
-        simulation_ant_run_step(sim, &sim->ants[i]);
+        Instruction inst = program_get_instruction(&sim->program, (size_t) ant->pc);
+        simulation_ant_run_single_instruction(sim, ant, inst);
+    }
+    else 
+    {
+        ant->instruction_budget = 0;
+    }
+    if (ant->instruction_budget == 0)
+    {
+        sim->next_ant_id++;
+        if (sim->next_ant_id == simulation_get_nb_ants(sim))
+        {
+            sim->next_ant_id = 0; 
+            sim->step_started = false;
+        }
     }
 }
 

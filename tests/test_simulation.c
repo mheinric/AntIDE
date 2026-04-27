@@ -484,6 +484,56 @@ test_simulation_tags(void)
     simulation_delete(sim);
 }
 
+void 
+test_simulation_run_single_instruction(void)
+{
+    const char* program = 
+        "main:\n"
+        "ADD r0 1\n"
+        "MOVE r0\n"
+        "JMP main\n"
+    ;
+    ParseResult res = parse_program_from_string(program);
+    TEST_ASSERT_EQUAL(0, parse_result_nb_errors(&res));
+    Program prog; 
+    program_init_move(&prog, &res.program);
+
+    SimulationSettings settings = simulation_settings_create_test();
+    settings.nb_ants = 2;
+    GridMap map; 
+    grid_map_init(&map, map_settings_create_test());
+    Simulation* sim = simulation_create(settings, prog, map);
+
+    Ant* ant0 = simulation_get_ant(sim, 0);
+    Ant* ant1 = simulation_get_ant(sim, 1);
+
+    //ant0 stepping through its instructions
+    simulation_run_single_instruction(sim);
+    TEST_ASSERT_EQUAL(1, ant0->pc);
+    TEST_ASSERT_EQUAL(0, ant1->pc);
+    simulation_run_single_instruction(sim);
+    TEST_ASSERT_EQUAL(2, ant0->pc);
+    TEST_ASSERT_EQUAL(0, ant1->pc);
+
+    //ant1 stepping through its instructions
+    simulation_run_single_instruction(sim);
+    TEST_ASSERT_EQUAL(2, ant0->pc);
+    TEST_ASSERT_EQUAL(1, ant1->pc);    simulation_run_single_instruction(sim);
+    TEST_ASSERT_EQUAL(2, ant0->pc);
+    TEST_ASSERT_EQUAL(2, ant1->pc);    
+    
+    //Next simulation step
+    TEST_ASSERT_EQUAL(1, simulation_get_step_number(sim));
+    //ant0 stepping through its instructions again
+    simulation_run_single_instruction(sim);
+    TEST_ASSERT_EQUAL(0, ant0->pc);
+    TEST_ASSERT_EQUAL(2, ant1->pc);    simulation_run_single_instruction(sim);
+    TEST_ASSERT_EQUAL(1, ant0->pc);
+    TEST_ASSERT_EQUAL(2, ant1->pc);
+
+    simulation_delete(sim);
+}
+
 int 
 run_all_simulation_tests(void) 
 {
@@ -506,5 +556,6 @@ run_all_simulation_tests(void)
     RUN_TEST(test_simulation_sense);
     RUN_TEST(test_simulation_sense_ants);
     RUN_TEST(test_simulation_tags);
+    RUN_TEST(test_simulation_run_single_instruction);
     return UNITY_END();
 }
