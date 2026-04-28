@@ -3,14 +3,20 @@
 #include "simulation.h"
 #include <cJSON/cJSON.h>
 
+typedef enum {
+    DBG_START,
+    DBG_RUN,
+    DBG_STEP,
+    DBG_PAUSE, 
+    DBG_STOP,
+    DBG_EXIT,
+} DebuggerState;
+
 typedef struct {
     int sim_speed;
-    bool stop_sim;
-    bool pause_sim;
-    bool exit_debugger;
+    DebuggerState state;
 
     char* program_file_path;
-    cJSON* pending_notif;
     Simulation* sim;
     pthread_t sim_thread;
     sem_t pause_semaphore;
@@ -28,4 +34,4 @@ void*
 debugger_simulation_runner(void* arg);
 
 void 
-debugger_send_pause_notif(Debugger* dbg);
+debugger_send_pause_notif(Debugger* dbg, const char* reason);

@@ -546,8 +546,13 @@ simulation_set_ant_position(Simulation *sim, Ant *ant, Position new_pos)
     simulation_get_cell(sim, new_pos)->nb_ants++;
 }
 
-const Program*
-simulation_get_program(const Simulation* sim)
+size_t simulation_get_next_running_ant(Simulation *sim)
+{
+    return sim->next_ant_id;
+}
+
+const Program *
+simulation_get_program(const Simulation *sim)
 {
     return &sim->program;
 }

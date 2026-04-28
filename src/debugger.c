@@ -10,12 +10,9 @@ void
 debugger_init(Debugger* debugger)
 {
     debugger->sim_speed = 1; 
-    debugger->stop_sim = false;
-    debugger->pause_sim = false;
-    debugger->exit_debugger = false;
+    debugger->state = DBG_START;
 
     debugger->program_file_path = NULL; 
-    debugger->pending_notif = NULL;
     debugger->sim = NULL; 
 
     sem_init(&debugger->pause_semaphore, 0, 0);
@@ -32,7 +29,6 @@ debugger_cleanup(Debugger* debugger)
         simulation_delete(debugger->sim); 
         debugger->sim = NULL;
     }
-    if (debugger->pending_notif) cJSON_free(debugger->pending_notif);
     if (debugger->program_file_path) free(debugger->program_file_path);
 }
 
@@ -59,22 +55,16 @@ debugger_send_update(Debugger* dbg)
 }
 
 void 
-debugger_send_pause_notif(Debugger* dbg)
+debugger_send_pause_notif(Debugger* dbg, const char* reason)
 {
     cJSON* pause_notif = cJSON_CreateObject(); 
     cJSON_AddStringToObject(pause_notif, "type", "event"); 
     cJSON_AddStringToObject(pause_notif, "event", "stopped");
     cJSON* notif_body = cJSON_AddObjectToObject(pause_notif, "body");
-    cJSON_AddStringToObject(notif_body, "reason", "pause");
+    cJSON_AddStringToObject(notif_body, "reason", reason);
     cJSON_AddBoolToObject(notif_body, "allThreadsStopped", true);
     cJSON_AddNumberToObject(notif_body, "threadId", dbg->last_stop_ant);
     send_packet(pause_notif, true);
-}
-
-void debugger_pause_sim(Debugger* dbg)
-{
-    debugger_send_pause_notif(dbg);
-    sem_wait(&dbg->pause_semaphore);
 }
 
 void* 
@@ -84,46 +74,80 @@ debugger_simulation_runner(void* arg)
     time_t last_sent_update; 
     time(&last_sent_update);
     debugger_send_update(arg);
-    for (size_t i = 0; i < 2000; i++)
+    while (dbg->state != DBG_STOP && dbg->state != DBG_EXIT)
     {
-        simulation_run_step(dbg->sim);
-        if (dbg->stop_sim)
+        switch(dbg->state)
         {
-            break;
-        }
-        if (dbg->sim_speed < 0)
-        {
-            time_t now; 
-            time(&now); 
-            if (now - last_sent_update > 0.1)
+            case DBG_START:
             {
+                // Send a notif that the simulation thread has started
+                cJSON* init_notif = cJSON_CreateObject(); 
+                cJSON_AddStringToObject(init_notif, "type", "event");
+                cJSON_AddStringToObject(init_notif, "event", "initialized");
+                send_packet(init_notif, true);
+                sem_wait(&dbg->pause_semaphore);
+                continue;
+            }
+            case DBG_RUN:
+            {
+                simulation_run_step(dbg->sim);
+                if (simulation_get_step_number(dbg->sim) >= 2000)
+                {
+                    dbg->state = DBG_PAUSE;
+                }
+                break;
+            }
+            case DBG_STEP:
+            {
+                while(dbg->last_stop_ant != simulation_get_next_running_ant(dbg->sim) && 
+                dbg->state == DBG_STEP)
+                {
+                    simulation_run_single_instruction(dbg->sim);
+                }
+                simulation_run_single_instruction(dbg->sim);
+                debugger_send_pause_notif(dbg, "step");
+                debugger_send_update(dbg);
+                sem_wait(&dbg->pause_semaphore);
+                break;
+            }
+            case DBG_PAUSE:
+            {
+                debugger_send_pause_notif(dbg, "pause");
+                debugger_send_update(dbg);
+                sem_wait(&dbg->pause_semaphore);
+                break;
+            } 
+            case DBG_STOP:
+            case DBG_EXIT:
+            {
+                break;
+            }
+        }
+        if (dbg->state == DBG_RUN)
+        {
+            if (dbg->sim_speed < 0)
+            {
+                time_t now; 
+                time(&now); 
+                if (now - last_sent_update > 0.1)
+                {
+                    last_sent_update = now;
+                    debugger_send_update(dbg);
+                }
+            }
+            else if (simulation_get_step_number(dbg->sim) % dbg->sim_speed == 0)
+            {
+                time_t now;
+                time(&now);
+                double diff_time = now - last_sent_update;
                 last_sent_update = now;
                 debugger_send_update(dbg);
+                if (diff_time < 0.1)
+                {
+                    usleep((0.1 - diff_time) * 1000 * 1000);
+                }
             }
         }
-        else if (simulation_get_step_number(dbg->sim) % dbg->sim_speed == 0)
-        {
-            time_t now;
-            time(&now);
-            double diff_time = now - last_sent_update;
-            last_sent_update = now;
-            debugger_send_update(dbg);
-            if (diff_time < 0.1)
-            {
-                usleep((0.1 - diff_time) * 1000 * 1000);
-            }
-        }
-        if (dbg->pause_sim)
-        {
-            debugger_pause_sim(dbg);
-        }
-    }
-
-    if (!dbg->stop_sim)
-    {
-        debugger_send_update(dbg);
-        dbg->pause_sim = true; 
-        debugger_pause_sim(dbg);
     }
 
     simulation_delete(dbg->sim);
@@ -145,7 +169,7 @@ run_debugger(void)
     Debugger dbg; 
     debugger_init(&dbg);
     
-    while (!dbg.exit_debugger)
+    while (dbg.state != DBG_EXIT)
     {
         cJSON* message = wait_for_message(); 
         if (message == NULL)
@@ -206,12 +230,6 @@ run_debugger(void)
             print_debug("Unhandled message type, skipping");
             print_debug(message_type);
             goto loop_iter_end;
-        }
-        if (dbg.pending_notif != NULL) 
-        {
-            print_debug("Sending pending event");
-            send_packet(dbg.pending_notif, true); 
-            dbg.pending_notif = NULL;
         }
 
 loop_iter_end:

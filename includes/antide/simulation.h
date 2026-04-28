@@ -49,6 +49,11 @@ simulation_run_step(Simulation *sim);
 void
 simulation_run_single_instruction(Simulation* sim);
 
+// Returns the id of the ant that will execute the next
+// instruction in the simulation
+size_t
+simulation_get_next_running_ant(Simulation* sim);
+
 const Program*
 simulation_get_program(const Simulation* sim);
 

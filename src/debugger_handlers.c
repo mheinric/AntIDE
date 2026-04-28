@@ -15,7 +15,7 @@ cJSON* debugger_handle_initialize(Debugger* /*dbg*/)
 cJSON* 
 debugger_handle_disconnect(Debugger* dbg)
 {
-    dbg->exit_debugger = true;
+    dbg->state = DBG_EXIT;
     sem_destroy(&dbg->pause_semaphore);
     return cJSON_CreateObject();
 }
@@ -60,11 +60,7 @@ debugger_handle_launch(Debugger* dbg, const cJSON* params)
         cJSON_free(sim_speed_arg);
         if (resp) cJSON_free(resp); 
     }
-
-    //Prepare the Initialized notification that will be sent after the response has been sent.
-    dbg->pending_notif = cJSON_CreateObject(); 
-    cJSON_AddStringToObject(dbg->pending_notif, "type", "event");
-    cJSON_AddStringToObject(dbg->pending_notif, "event", "initialized");
+    pthread_create(&dbg->sim_thread, NULL, debugger_simulation_runner, dbg);
 
     return cJSON_CreateObject();
 launch_error:
@@ -75,8 +71,8 @@ launch_error:
 cJSON*
 debugger_handle_configuration_done(Debugger* dbg)
 {
-    //TODO: this is temporary for testing
-    pthread_create(&dbg->sim_thread, NULL, debugger_simulation_runner, dbg);
+    dbg->state = DBG_RUN;
+    sem_post(&dbg->pause_semaphore);
 
     return cJSON_CreateObject();
 }
@@ -105,8 +101,7 @@ debugger_handle_terminate(Debugger* dbg, const cJSON* /*params*/)
 {
     // Stop the simulation, but don't stop the debugger
     // Note: there is a 'restart' param if we want to restart the simulation from the start that needs to be accounted for
-    dbg->stop_sim = true;
-    dbg->pause_sim = false; 
+    dbg->state = DBG_STOP;
     sem_post(&dbg->pause_semaphore);
     if (dbg->program_file_path) free(dbg->program_file_path);
     dbg->program_file_path = NULL;
@@ -116,7 +111,7 @@ debugger_handle_terminate(Debugger* dbg, const cJSON* /*params*/)
 cJSON*
 debugger_handle_pause(Debugger* dbg, const cJSON* /*params*/)
 {
-    dbg->pause_sim = true;
+    dbg->state = DBG_PAUSE;
     return cJSON_CreateNull();
 }
 
@@ -154,7 +149,7 @@ debugger_handle_get_scope(Debugger* dbg, const cJSON* params)
         //by sending this notif, we effectively invalidate the previous stacktrace,
         //which clears the marker from the view.
         dbg->last_stop_ant = ant_id; 
-        debugger_send_pause_notif(dbg);
+        debugger_send_pause_notif(dbg, dbg->state == DBG_PAUSE ? "pause" : DBG_STEP);
     }
     cJSON* result = cJSON_CreateObject(); 
     cJSON* scopes_array = cJSON_AddArrayToObject(result, "scopes");
@@ -273,7 +268,7 @@ debugger_handle_get_variables(Debugger* dbg, const cJSON* params)
 cJSON*
 debugger_handle_continue(Debugger* dbg, const cJSON* /*params*/)
 {
-    dbg->pause_sim = false; 
+    dbg->state = DBG_RUN; 
     sem_post(&dbg->pause_semaphore);
     return cJSON_CreateNull();
 }
@@ -321,6 +316,14 @@ debugger_handle_step_out(Debugger *dbg)
 {
     //By notifying the pause semaphore, the simulation thread will exit pause
     //for a single step before going back into it;
+    sem_post(&dbg->pause_semaphore);
+    return cJSON_CreateNull();
+}
+
+cJSON*
+debugger_handle_step(Debugger *dbg)
+{
+    dbg->state = DBG_STEP;
     sem_post(&dbg->pause_semaphore);
     return cJSON_CreateNull();
 }
@@ -384,6 +387,10 @@ debugger_handle_request(Debugger* dbg, const char* method, const cJSON* params)
     if (strcmp(method, "stepOut") == 0)
     {
         return debugger_handle_step_out(dbg);
+    }
+    if (strcmp(method, "stepIn") == 0 || strcmp(method, "next") == 0)
+    {
+        return debugger_handle_step(dbg);
     }
     print_debug("No handler for request:");
     print_debug(method);

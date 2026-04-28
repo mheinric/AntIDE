@@ -50,6 +50,9 @@ cJSON*
 debugger_handle_step_out(Debugger* dbg);
 
 cJSON* 
+debugger_handle_step(Debugger* dbg);
+
+cJSON* 
 debugger_handle_request(Debugger* dbg, const char* method, const cJSON* params);
 
 void
