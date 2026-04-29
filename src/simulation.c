@@ -52,6 +52,7 @@ simulation_create(SimulationSettings settings, Program prog, GridMap map)
     sim->step_number = 0;
     sim->next_ant_id = 0; 
     sim->step_started = false;
+    sim->skip_next_breakpoint = false;
     sim->ants = calloc(settings.nb_ants, sizeof(Ant));
 
     for (size_t i = 0; i < settings.nb_ants; i++)
@@ -436,7 +437,7 @@ void simulation_run_step(Simulation *sim)
 {
     do {
         simulation_run_single_instruction(sim);
-    } while(sim->step_started);
+    } while(sim->step_started && !sim->skip_next_breakpoint);
 }
 
 void simulation_run_single_instruction(Simulation *sim)
@@ -467,6 +468,12 @@ void simulation_run_single_instruction(Simulation *sim)
     if (ant->pc >= 0 && (size_t) ant->pc < program_size(&sim->program))
     {
         Instruction inst = program_get_instruction(&sim->program, (size_t) ant->pc);
+        if (inst.breakpoint && !sim->skip_next_breakpoint)
+        {
+            sim->skip_next_breakpoint = true;
+            return;
+        }
+        sim->skip_next_breakpoint = false;
         simulation_ant_run_single_instruction(sim, ant, inst);
     }
     else 
@@ -551,8 +558,14 @@ size_t simulation_get_next_running_ant(Simulation *sim)
     return sim->next_ant_id;
 }
 
-const Program *
-simulation_get_program(const Simulation *sim)
+Program *
+simulation_get_program(Simulation *sim)
 {
     return &sim->program;
+}
+
+bool
+simulation_stopped_on_breakpoint(Simulation* sim)
+{
+    return sim->skip_next_breakpoint;
 }

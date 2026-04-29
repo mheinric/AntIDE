@@ -6,6 +6,7 @@ struct Simulation {
     size_t step_number;
     size_t next_ant_id; 
     bool step_started;
+    bool skip_next_breakpoint;
     Ant* ants;
     Program program;
     size_t score;

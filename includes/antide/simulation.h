@@ -54,8 +54,8 @@ simulation_run_single_instruction(Simulation* sim);
 size_t
 simulation_get_next_running_ant(Simulation* sim);
 
-const Program*
-simulation_get_program(const Simulation* sim);
+Program*
+simulation_get_program(Simulation* sim);
 
 size_t 
 simulation_get_step_number(Simulation* sim);
@@ -80,3 +80,6 @@ simulation_get_tag_name(Simulation *sim, uint8_t tag_id);
 
 void
 simulation_set_ant_position(Simulation *sim, Ant *ant, Position new_pos);
+
+bool
+simulation_stopped_on_breakpoint(Simulation* sim);

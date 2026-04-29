@@ -55,7 +55,7 @@ debugger_send_update(Debugger* dbg)
 }
 
 void 
-debugger_send_pause_notif(Debugger* dbg, const char* reason)
+debugger_send_pause_notif(const char* reason, size_t ant_id)
 {
     cJSON* pause_notif = cJSON_CreateObject(); 
     cJSON_AddStringToObject(pause_notif, "type", "event"); 
@@ -63,7 +63,7 @@ debugger_send_pause_notif(Debugger* dbg, const char* reason)
     cJSON* notif_body = cJSON_AddObjectToObject(pause_notif, "body");
     cJSON_AddStringToObject(notif_body, "reason", reason);
     cJSON_AddBoolToObject(notif_body, "allThreadsStopped", true);
-    cJSON_AddNumberToObject(notif_body, "threadId", dbg->last_stop_ant);
+    cJSON_AddNumberToObject(notif_body, "threadId", ant_id);
     send_packet(pause_notif, true);
 }
 
@@ -91,6 +91,14 @@ debugger_simulation_runner(void* arg)
             case DBG_RUN:
             {
                 simulation_run_step(dbg->sim);
+                if (simulation_stopped_on_breakpoint(dbg->sim))
+                {
+                    dbg->state = DBG_PAUSE;
+                    dbg->last_stop_ant = simulation_get_next_running_ant(dbg->sim);
+                    debugger_send_pause_notif("breakpoint", dbg->last_stop_ant);
+                    debugger_send_update(dbg);
+                    sem_wait(&dbg->pause_semaphore);
+                }
                 if (simulation_get_step_number(dbg->sim) >= 2000)
                 {
                     dbg->state = DBG_PAUSE;
@@ -99,20 +107,43 @@ debugger_simulation_runner(void* arg)
             }
             case DBG_STEP:
             {
+                bool sim_others = false;
                 while(dbg->last_stop_ant != simulation_get_next_running_ant(dbg->sim) && 
                 dbg->state == DBG_STEP)
                 {
+                    //If this is not the turn to the ant we are currently debugging, then we simulate the other ants.
+                    sim_others = true;
                     simulation_run_single_instruction(dbg->sim);
+                    if (simulation_stopped_on_breakpoint(dbg->sim))
+                    {
+                        //If one of the other ants hits a breakpoint, we stop the loop
+                        break;
+                    }
                 }
-                simulation_run_single_instruction(dbg->sim);
-                debugger_send_pause_notif(dbg, "step");
+                if (sim_others && simulation_stopped_on_breakpoint(dbg->sim))
+                {
+                    //One of the other ants hit a breakpoint in the loop above, so we don't simulate any additional instructions.
+                    dbg->last_stop_ant = simulation_get_next_running_ant(dbg->sim);
+                }
+                else
+                {
+                    //Run a single instruction, ignoring breakpoints
+                    simulation_run_single_instruction(dbg->sim);
+                    if (simulation_stopped_on_breakpoint(dbg->sim))
+                    {
+                        //We hit a breakpoint, so we actually have 
+                        //to run the instruction again to actually execute it
+                        simulation_run_single_instruction(dbg->sim);
+                    }
+                }
+                debugger_send_pause_notif("step", dbg->last_stop_ant);
                 debugger_send_update(dbg);
                 sem_wait(&dbg->pause_semaphore);
                 break;
             }
             case DBG_PAUSE:
             {
-                debugger_send_pause_notif(dbg, "pause");
+                debugger_send_pause_notif("pause", dbg->last_stop_ant);
                 debugger_send_update(dbg);
                 sem_wait(&dbg->pause_semaphore);
                 break;

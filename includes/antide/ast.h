@@ -93,7 +93,8 @@ bool
 argument_equal(Argument first, Argument second);
 
 typedef struct {
-    InstructionType type; 
+    InstructionType type;
+    bool breakpoint;
 
     union {
         struct {} no_args;
@@ -190,3 +191,9 @@ program_get_source_line(const Program *program, size_t instruction_index);
 
 size_t 
 program_get_instruction_index(const Program *program, size_t line_nb);
+
+void 
+program_set_breakpoint(Program* program, size_t inst_index);
+
+void 
+program_clear_breakpoints(Program* program);

@@ -534,6 +534,47 @@ test_simulation_run_single_instruction(void)
     simulation_delete(sim);
 }
 
+void 
+test_simulation_breakpoint(void)
+{
+    const char* program = 
+        "main:\n"
+        "ADD r0 1\n"
+        "MOVE r0\n"
+        "JMP main\n"
+    ;
+    Simulation* sim = create_test_sim(program);
+    Program* prog = simulation_get_program(sim);
+    program_set_breakpoint(prog, 1); 
+    Ant* ant = simulation_get_ant(sim, 0);
+
+    //Simulation step must stop on breakpoint
+    simulation_run_step(sim);
+    TEST_ASSERT_EQUAL(1, ant->pc);
+    TEST_ASSERT_TRUE(simulation_stopped_on_breakpoint(sim));
+    //Running the simulation step again continues the simulation and skips the breakpoint.
+    simulation_run_step(sim);
+    TEST_ASSERT_EQUAL(2, ant->pc);
+    TEST_ASSERT_FALSE(simulation_stopped_on_breakpoint(sim));
+    //This will break again on the same breakpoint
+    simulation_run_step(sim);
+    TEST_ASSERT_EQUAL(1, ant->pc);
+    TEST_ASSERT_TRUE(simulation_stopped_on_breakpoint(sim));
+
+    program_clear_breakpoints(prog);
+    //There is no more breakpoints
+    simulation_run_step(sim);
+    TEST_ASSERT_EQUAL(2, ant->pc);
+    TEST_ASSERT_FALSE(simulation_stopped_on_breakpoint(sim));
+    simulation_run_step(sim);
+    TEST_ASSERT_EQUAL(2, ant->pc);
+    TEST_ASSERT_FALSE(simulation_stopped_on_breakpoint(sim));
+    simulation_run_step(sim);
+    TEST_ASSERT_EQUAL(2, ant->pc);
+    TEST_ASSERT_FALSE(simulation_stopped_on_breakpoint(sim));
+    simulation_delete(sim);
+}
+
 int 
 run_all_simulation_tests(void) 
 {
@@ -557,5 +598,6 @@ run_all_simulation_tests(void)
     RUN_TEST(test_simulation_sense_ants);
     RUN_TEST(test_simulation_tags);
     RUN_TEST(test_simulation_run_single_instruction);
+    RUN_TEST(test_simulation_breakpoint);
     return UNITY_END();
 }

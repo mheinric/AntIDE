@@ -70,6 +70,7 @@ instruction_create_move(Argument dir)
 {
     return (Instruction) {
         .type = INST_MOVE, 
+        .breakpoint = false,
         .move_args = { .dir = dir }
     };
 }
@@ -79,6 +80,7 @@ instruction_create_arithmetic(InstructionType type, uint8_t target_reg, Argument
 {
     return (Instruction) {
         .type = type, 
+        .breakpoint = false,
         .arith_args = { .target_register = target_reg, .arg = arg} 
     };
 }
@@ -88,6 +90,7 @@ instruction_create_jump(Argument target)
 {
     return (Instruction) {
         .type = INST_JMP, 
+        .breakpoint = false,
         .jmp_arg = { .target = target }
     };
 }
@@ -97,6 +100,7 @@ instruction_create_conditional_jump(InstructionType type, Argument cond_value1, 
 {
     return (Instruction) {
         .type = type, 
+        .breakpoint = false,
         .cond_jmp_arg = { 
             .cond_value1 = cond_value1,
             .cond_value2 = cond_value2,
@@ -110,6 +114,7 @@ instruction_create_call(uint8_t return_register, Argument target)
 {
     return (Instruction) {
         .type = INST_CALL, 
+        .breakpoint = false,
         .call_arg = {
             .return_register = return_register, 
             .target = target
@@ -122,6 +127,7 @@ instruction_create_info(InstructionType type, uint8_t target_reg)
 {
     return (Instruction) {
         .type = type, 
+        .breakpoint = false,
         .info_arg = { .target_register = target_reg }
     } ;
 }
@@ -131,6 +137,7 @@ instruction_create_mark(Argument channel, Argument amount)
 {
     return (Instruction) {
         .type = INST_MARK, 
+        .breakpoint = false,
         .mark_args = { .channel = channel, .amount = amount }
     };
 }
@@ -140,6 +147,7 @@ instruction_create_sniff(Argument channel, Argument direction, uint8_t target_re
 {
     return (Instruction){
         .type = INST_SNIFF,
+        .breakpoint = false,
         .sniff_args = { .channel = channel, .direction = direction, .target_reg = target_reg }
     };
 }
@@ -149,6 +157,7 @@ instruction_create_smell(Argument channel, uint8_t target_reg)
 {
     return (Instruction) {
         .type = INST_SMELL, 
+        .breakpoint = false,
         .smell_args = { .channel = channel, .target_reg = target_reg }
     };
 }
@@ -159,6 +168,7 @@ instruction_create_probe(Argument direction, uint8_t target_reg)
 {
     return (Instruction) {
         .type = INST_PROBE, 
+        .breakpoint = false,
         .probe_args = { .direction = direction, .target_reg = target_reg },
     };
 }
@@ -168,6 +178,7 @@ instruction_create_sense(Argument sense_type, uint8_t target_reg)
 {
     return (Instruction) {
         .type = INST_SENSE,
+        .breakpoint = false,
         .sense_args = { .type = sense_type, .target_reg = target_reg }
     };
 }
@@ -176,6 +187,7 @@ Instruction instruction_create_tag(Argument tag_value)
 {
     return (Instruction) {
         .type = INST_TAG,
+        .breakpoint = false,
         .tag_args = { .value = tag_value }
     };
 }
@@ -355,4 +367,20 @@ program_get_instruction_index(const Program *program, size_t line_nb)
         }
     }
     return last_index;
+}
+
+void 
+program_set_breakpoint(Program* program, size_t inst_index)
+{
+    assert(inst_index < program_size(program));
+    program->instructions->begin[inst_index].breakpoint = true;
+}
+
+void 
+program_clear_breakpoints(Program* program)
+{
+    for (Instruction* it = program->instructions->begin; it != program->instructions->end; it++)
+    {
+        it->breakpoint = false;
+    }
 }

@@ -7,7 +7,6 @@ cJSON* debugger_handle_initialize(Debugger* /*dbg*/)
     //Return the server capabilities
     cJSON* capabilities = cJSON_CreateObject();
     cJSON_AddBoolToObject(capabilities, "supportsTerminateRequest", true);
-    cJSON_AddBoolToObject(capabilities, "supportsInstructionBreakpoints", true);
     cJSON_AddBoolToObject(capabilities, "supportsConfigurationDoneRequest", true);
     return capabilities; 
 }
@@ -21,9 +20,33 @@ debugger_handle_disconnect(Debugger* dbg)
 }
 
 cJSON*
-debugger_handle_set_breakpoints(Debugger* /*dbg*/, const cJSON* /*params*/)
+debugger_handle_set_breakpoints(Debugger* dbg, const cJSON* params)
 {
-    return cJSON_CreateObject();
+    cJSON* breakpoints = cJSON_GetObjectItem(params, "breakpoints"); 
+    Program* prog = simulation_get_program(dbg->sim);
+    program_clear_breakpoints(prog); 
+    size_t nb_breakpoints = cJSON_GetArraySize(breakpoints); 
+
+    cJSON* result_bp = cJSON_CreateArray();
+    for (size_t i = 0; i < nb_breakpoints; i++)
+    {
+        size_t line_nb = cJSON_GetNumberValue(
+        cJSON_GetObjectItem(cJSON_GetArrayItem(breakpoints, i), "line"));
+        size_t inst_index = program_get_instruction_index(prog, line_nb); 
+        program_set_breakpoint(prog, inst_index);
+        size_t actual_line_nb = program_get_source_line(prog, inst_index);
+
+
+        cJSON* bp = cJSON_CreateObject(); 
+        cJSON_AddBoolToObject(bp, "verified", true);
+        cJSON_AddNumberToObject(bp, "line", actual_line_nb);
+        cJSON_AddItemToArray(result_bp, bp);
+    }
+
+    cJSON* resp = cJSON_CreateObject(); 
+    cJSON_AddItemToObject(resp, "breakpoints", result_bp);
+
+    return resp;
 }
 
 cJSON*
@@ -149,7 +172,7 @@ debugger_handle_get_scope(Debugger* dbg, const cJSON* params)
         //by sending this notif, we effectively invalidate the previous stacktrace,
         //which clears the marker from the view.
         dbg->last_stop_ant = ant_id; 
-        debugger_send_pause_notif(dbg, dbg->state == DBG_PAUSE ? "pause" : DBG_STEP);
+        debugger_send_pause_notif(dbg->state == DBG_PAUSE ? "pause" : "step", dbg->last_stop_ant);
     }
     cJSON* result = cJSON_CreateObject(); 
     cJSON* scopes_array = cJSON_AddArrayToObject(result, "scopes");
@@ -339,8 +362,7 @@ debugger_handle_request(Debugger* dbg, const char* method, const cJSON* params)
     {
         return debugger_handle_disconnect(dbg);
     }
-    if (strcmp(method, "setBreakpoints") == 0 || 
-        strcmp(method, "setInstructionBreakpoints") == 0)
+    if (strcmp(method, "setBreakpoints") == 0)
     {
         return debugger_handle_set_breakpoints(dbg, params);
     }

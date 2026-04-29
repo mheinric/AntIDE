@@ -381,6 +381,7 @@ parser_read_artihmetic_instruction(
     }
     Instruction inst;
     inst.type = type;
+    inst.breakpoint = false;
     if (parser_read_register(parser, &tokens[1], &inst.arith_args.target_register) && 
         parser_read_argument(parser, &tokens[2], &inst.arith_args.arg))
     {
@@ -447,6 +448,7 @@ read_instruction_from_tokens(
         }
         Instruction inst;
         inst.type = INST_PICKUP; 
+        inst.breakpoint = false;
         program_push_instruction(&parser->parse_result.program, inst, parser->current_line);
     }
     else if (token_matches_str(&tokens[0], "DROP"))
@@ -457,6 +459,7 @@ read_instruction_from_tokens(
         }
         Instruction inst;
         inst.type = INST_DROP; 
+        inst.breakpoint = false;
         program_push_instruction(&parser->parse_result.program, inst, parser->current_line);
     }
     else if (token_matches_str(&tokens[0], "MOVE"))
@@ -467,6 +470,7 @@ read_instruction_from_tokens(
         }
         Instruction inst;
         inst.type = INST_MOVE;
+        inst.breakpoint = false;
         if (parser_read_argument(parser, &tokens[1], &inst.move_args.dir))
         {
             program_push_instruction(&parser->parse_result.program, inst, parser->current_line);

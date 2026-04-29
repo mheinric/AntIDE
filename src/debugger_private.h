@@ -34,4 +34,4 @@ void*
 debugger_simulation_runner(void* arg);
 
 void 
-debugger_send_pause_notif(Debugger* dbg, const char* reason);
+debugger_send_pause_notif(const char* reason, size_t ant_id);
