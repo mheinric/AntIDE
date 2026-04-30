@@ -61,18 +61,11 @@ debugger_handle_launch(Debugger* dbg, const cJSON* params)
         print_debug("debugger_handle_launch: No filename field in input params");
         goto launch_error;
     }
-    ParseResult result = parse_program_from_file(dbg->program_file_path);
-    if (parse_result_nb_errors(&result) > 0)
+    if (!debugger_init_simulation(dbg))
     {
-        print_debug("debugger_handle_launch: Failed to parse program");
+        print_debug("debugger_handle_launch: Failed to init sim");
         goto launch_error;
     }
-    Program prog; 
-    program_init_move(&prog, &result.program);
-    parse_result_cleanup(&result);
-    GridMap map; 
-    grid_map_init(&map, map_settings_create_default(42));
-    dbg->sim = simulation_create(simulation_settings_create_default(42), prog, map);
 
     const char* sim_speed = cJSON_GetStringValue(cJSON_GetObjectItem(params, "simulationSpeed"));
     if (sim_speed != NULL)
@@ -351,6 +344,19 @@ debugger_handle_step(Debugger *dbg)
     return cJSON_CreateNull();
 }
 
+cJSON*
+debugger_handle_set_current_step(Debugger* dbg, const cJSON* params)
+{
+    DebuggerState old_state = dbg->state; 
+    dbg->state = DBG_FAST_SIM;
+    dbg->target_step_nb = cJSON_GetNumberValue(cJSON_GetObjectItem(params, "step"));
+    if (old_state == DBG_PAUSE || old_state == DBG_STEP)
+    {
+        sem_post(&dbg->pause_semaphore);
+    }
+    return cJSON_CreateNull();
+}
+
 cJSON* 
 debugger_handle_request(Debugger* dbg, const char* method, const cJSON* params)
 {
@@ -413,6 +419,10 @@ debugger_handle_request(Debugger* dbg, const char* method, const cJSON* params)
     if (strcmp(method, "stepIn") == 0 || strcmp(method, "next") == 0)
     {
         return debugger_handle_step(dbg);
+    }
+    if (strcmp(method, "setCurrentStep") == 0)
+    {
+        return debugger_handle_set_current_step(dbg, params);
     }
     print_debug("No handler for request:");
     print_debug(method);

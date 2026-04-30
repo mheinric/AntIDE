@@ -142,6 +142,10 @@ export function activate(context: ExtensionContext) {
 							lastSimSpeed = message.payload.speed;
 							session.customRequest('setSimulationSpeed', message.payload);
 						}
+						if (message.command == "setCurrentStep")
+						{
+							session.customRequest("setCurrentStep", message.payload);
+						}
 					});
 				}
 				lastSimData = event.body;

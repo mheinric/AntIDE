@@ -5,6 +5,7 @@
 
 typedef enum {
     DBG_START,
+    DBG_FAST_SIM,
     DBG_RUN,
     DBG_STEP,
     DBG_PAUSE, 
@@ -17,10 +18,12 @@ typedef struct {
     DebuggerState state;
 
     char* program_file_path;
+
     Simulation* sim;
     pthread_t sim_thread;
     sem_t pause_semaphore;
     size_t last_stop_ant;
+    size_t target_step_nb;
 
 } Debugger;
 
@@ -29,6 +32,9 @@ debugger_init(Debugger* debugger);
 
 void
 debugger_cleanup(Debugger* debugger);
+
+bool
+debugger_init_simulation(Debugger* debugger);
 
 void* 
 debugger_simulation_runner(void* arg);

@@ -12,7 +12,7 @@
     <canvas id="worldGrid" width="200" height="200"></canvas>
 	<div id="detailsDiv" style="display: none;"></div>
 	<div id="controlsDiv">
-		<progress id="simulationProgress" max="2000" value="0"></progress><span id="simulationProgressLabel">0/2000</span><br>
+		<input type="range" id="simulationProgress" max="2000" value="0"><input type="number" value="0", id="simulationStepNumber" min="0" max="2000">/2000<br>
 		<span id="pheroLabel">Pheromones:</span>
 		<button class="pheroButton" id="redChanButton">R</button>
 		<button class="pheroButton" id="blueChanButton">B</button>
@@ -65,12 +65,12 @@
 		width: 100%;
 	}
 	#simulationProgress {
-		width: calc(100% - 100px);
+		width: calc(100% - 150px);
 		margin-left: 20px;
 		margin-right: 5px;
 	}
-	#simulationProgressLabel {
-		width: 80px;
+	#simulationStepNumber {
+		width: 60px;
 	}
 
 	#pheroLabel {
@@ -147,7 +147,7 @@ const body = document.querySelector("body");
 const worldGrid = document.getElementById("worldGrid");
 const detailsDiv = document.getElementById("detailsDiv");
 const simulationProgress = document.getElementById("simulationProgress");
-const simulationProgressLabel = document.getElementById("simulationProgressLabel");
+const simulationStepNumber = document.getElementById("simulationStepNumber");
 const redChanButton = document.getElementById("redChanButton");
 const blueChanButton = document.getElementById("blueChanButton");
 const greenChanButton = document.getElementById("greenChanButton");
@@ -164,6 +164,24 @@ const refreshPageButton = document.getElementById("refreshPageButton");
 
 var simData = null;
 var cellSize = -1;
+
+simulationProgress.addEventListener("input", (event) => {
+  simulationStepNumber.value = simulationProgress.value;
+});
+
+simulationProgress.addEventListener("mouseup", (event) => { 
+	vscode.postMessage({
+		command: 'setCurrentStep',
+		payload: { step: Number(simulationProgress.value) }
+	});
+});
+
+simulationStepNumber.addEventListener("change", (event) => {
+	vscode.postMessage({
+		command: 'setCurrentStep',
+		payload: { step: Number(simulationStepNumber.value) }
+	});
+});
 
 for (let button of pheromoneButtons) {
 	button.onclick = () => { 
@@ -239,7 +257,7 @@ function getCellColor(cell) {
 function updateGrid()
 {
 	simulationProgress.value = simData.simulation.step_number;
-	simulationProgressLabel.textContent = `${simData.simulation.step_number}/2000`;
+	simulationStepNumber.value = simData.simulation.step_number;
 
 	const ctx = worldGrid.getContext("2d");
 	let width = body.getBoundingClientRect().width - 20;

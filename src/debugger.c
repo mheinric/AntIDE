@@ -17,6 +17,7 @@ debugger_init(Debugger* debugger)
 
     sem_init(&debugger->pause_semaphore, 0, 0);
     debugger->last_stop_ant = 0;
+    debugger->target_step_nb = 2000;
 }
 
 
@@ -30,6 +31,29 @@ debugger_cleanup(Debugger* debugger)
         debugger->sim = NULL;
     }
     if (debugger->program_file_path) free(debugger->program_file_path);
+}
+
+bool 
+debugger_init_simulation(Debugger *dbg)
+{
+    if (dbg->sim != NULL) 
+    {
+        simulation_delete(dbg->sim);
+        dbg->sim = NULL;   
+    }
+    ParseResult result = parse_program_from_file(dbg->program_file_path);
+    if (parse_result_nb_errors(&result) > 0)
+    {
+        print_debug("debugger_init_simulation: Failed to parse program");
+        return false;
+    }
+    Program prog; 
+    program_init_move(&prog, &result.program);
+    parse_result_cleanup(&result);
+    GridMap map; 
+    grid_map_init(&map, map_settings_create_default(42));
+    dbg->sim = simulation_create(simulation_settings_create_default(42), prog, map);
+    return true;
 }
 
 static
@@ -90,6 +114,7 @@ debugger_simulation_runner(void* arg)
             }
             case DBG_RUN:
             {
+
                 simulation_run_step(dbg->sim);
                 if (simulation_stopped_on_breakpoint(dbg->sim))
                 {
@@ -102,6 +127,23 @@ debugger_simulation_runner(void* arg)
                 if (simulation_get_step_number(dbg->sim) >= 2000)
                 {
                     dbg->state = DBG_PAUSE;
+                }
+                break;
+            }
+            case DBG_FAST_SIM: 
+            {
+                if (simulation_get_step_number(dbg->sim) > dbg->target_step_nb)
+                {
+                    debugger_init_simulation(dbg);
+                }
+
+                if (simulation_get_step_number(dbg->sim) == dbg->target_step_nb)
+                {
+                    dbg->state = DBG_PAUSE;
+                }
+                else
+                {
+                    simulation_run_step(dbg->sim);
                 }
                 break;
             }
