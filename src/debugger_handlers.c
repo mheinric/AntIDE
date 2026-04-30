@@ -330,8 +330,7 @@ debugger_handle_set_simulation_speed(Debugger* dbg, const cJSON* params)
 cJSON *
 debugger_handle_step_out(Debugger *dbg)
 {
-    //By notifying the pause semaphore, the simulation thread will exit pause
-    //for a single step before going back into it;
+    dbg->state = DBG_STEP_OUT;
     sem_post(&dbg->pause_semaphore);
     return cJSON_CreateNull();
 }
@@ -350,7 +349,7 @@ debugger_handle_set_current_step(Debugger* dbg, const cJSON* params)
     DebuggerState old_state = dbg->state; 
     dbg->state = DBG_FAST_SIM;
     dbg->target_step_nb = cJSON_GetNumberValue(cJSON_GetObjectItem(params, "step"));
-    if (old_state == DBG_PAUSE || old_state == DBG_STEP)
+    if (old_state == DBG_PAUSE || old_state == DBG_STEP || old_state == DBG_STEP_OUT)
     {
         sem_post(&dbg->pause_semaphore);
     }

@@ -147,11 +147,12 @@ debugger_simulation_runner(void* arg)
                 }
                 break;
             }
+            case DBG_STEP_OUT:
             case DBG_STEP:
             {
                 bool sim_others = false;
                 while(dbg->last_stop_ant != simulation_get_next_running_ant(dbg->sim) && 
-                dbg->state == DBG_STEP)
+                (dbg->state == DBG_STEP || dbg->state == DBG_STEP_OUT))
                 {
                     //If this is not the turn to the ant we are currently debugging, then we simulate the other ants.
                     sim_others = true;
@@ -169,13 +170,28 @@ debugger_simulation_runner(void* arg)
                 }
                 else
                 {
-                    //Run a single instruction, ignoring breakpoints
-                    simulation_run_single_instruction(dbg->sim);
-                    if (simulation_stopped_on_breakpoint(dbg->sim))
+                    if (dbg->state == DBG_STEP)
                     {
-                        //We hit a breakpoint, so we actually have 
-                        //to run the instruction again to actually execute it
+                        //Run a single instruction, ignoring breakpoints
                         simulation_run_single_instruction(dbg->sim);
+                        if (simulation_stopped_on_breakpoint(dbg->sim))
+                        {
+                            //We hit a breakpoint, so we actually have 
+                            //to run the instruction again to actually execute it
+                            simulation_run_single_instruction(dbg->sim);
+                        }
+                    }
+                    else
+                    {
+                        //Run all the instructions for this ant, stopping on breakpoints
+                        while (simulation_get_next_running_ant(dbg->sim) == dbg->last_stop_ant)
+                        {
+                            simulation_run_single_instruction(dbg->sim);
+                            if (simulation_stopped_on_breakpoint(dbg->sim))
+                            {
+                                break;
+                            }
+                        }
                     }
                 }
                 debugger_send_pause_notif("step", dbg->last_stop_ant);

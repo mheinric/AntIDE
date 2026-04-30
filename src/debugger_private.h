@@ -8,6 +8,7 @@ typedef enum {
     DBG_FAST_SIM,
     DBG_RUN,
     DBG_STEP,
+    DBG_STEP_OUT,
     DBG_PAUSE, 
     DBG_STOP,
     DBG_EXIT,
