@@ -9,7 +9,8 @@
     <title>Grid</title>
 </head>
 <body>
-    <canvas id="worldGrid" width="200" height="200"></canvas>
+    <canvas id="worldGrid" width="200" height="200">
+	</canvas>
 	<div id="detailsDiv" style="display: none;"></div>
 	<div id="controlsDiv">
 		<input type="range" id="simulationProgress" max="2000" value="0"><input type="number" value="0", id="simulationStepNumber" min="0" max="2000">/2000<br>
@@ -210,6 +211,9 @@ for (let button of pheromoneButtons) {
 }
 
 refreshPageButton.onclick = () => {
+	camera.x = 0; 
+	camera.y =  0; 
+	camera.zoom = 1;
 	vscode.postMessage({
 		command: 'refreshPage',
 		payload: { }
@@ -221,21 +225,32 @@ worldGrid.addEventListener("mouseleave", (event) => {
 });
 
 worldGrid.addEventListener("mousemove", (event) => { 
-	detailsDiv.style.display = "block";
 	let worldGridRect = worldGrid.getBoundingClientRect();
-	let posX = Math.floor((event.x - worldGridRect.x) / cellSize); 
-	let posY = Math.floor((worldGrid.height - event.y + worldGridRect.y) / cellSize);
+
+	const ctx = worldGrid.getContext("2d");
+	ctx.setTransform(camera.zoom, 0, 0, camera.zoom, camera.x + camera.base_x, camera.y + camera.base_y);
+	let transformedPoint = ctx.getTransform().inverse().transformPoint(new DOMPointReadOnly(event.x - worldGridRect.x, event.y - worldGridRect.y));
+	let mouseX = transformedPoint.x; 
+	let mouseY = transformedPoint.y; 
+
 	let map = simData.simulation.map;
+	let posX = Math.floor(mouseX / cellSize); 
+	let posY = map.height - 1 - Math.floor(mouseY / cellSize);
 	let cellTypeNames = ["Empty", "Wall", "Nest"];
 	if (posX >= 0 && posY >= 0 && posX < map.width && posY < map.height)
 	{
-		let cell = map.cells[map.height - posY - 1][posX];
+		let cell = map.cells[posY][posX];
 		detailsDiv.innerHTML = `
 			<strong>X:</strong> ${posX}, <strong>Y:</strong> ${posY}<br>
 			<strong>Type:</strong> ${cellTypeNames[cell.type]}<br>
 			<strong>Food:</strong> ${cell.food_amount}<br> 
 			<strong>Red&nbsp;&nbsp;:</strong> ${("" + cell.pheromones[0]).padStart(3, '0')} <strong>Blue&nbsp;&nbsp;:</strong> ${("" + cell.pheromones[1]).padStart(3, '0')}<br>
 			<strong>Green:</strong> ${("" + cell.pheromones[2]).padStart(3, '0')} <strong>Yellow:</strong> ${("" + cell.pheromones[3]).padStart(3, '0')}`;
+		detailsDiv.style.display = "block";
+	}
+	else 
+	{
+		detailsDiv.style.display = "none";
 	}
 });
 
@@ -279,7 +294,6 @@ function updateGrid()
 	simulationStepNumber.value = simData.simulation.step_number;
 	scoreLabel.textContent = `Score: ${simData.simulation.score}/${simData.simulation.max_score}`;
 
-	const ctx = worldGrid.getContext("2d");
 	let width = body.getBoundingClientRect().width - 20;
 	let height = body.getBoundingClientRect().height - 10 - 50;
 	const cells = simData.simulation.map.cells; 
@@ -302,7 +316,8 @@ function updateGrid()
 		enabledPheromones.push(pheromoneButtons[i].classList.contains("pheroEnable"));	
 	}
 
-	ctx.setTransform(1, 0, 0, 1, 0, 0);
+	const ctx = worldGrid.getContext("2d");
+	ctx.resetTransform();
 	ctx.clearRect(0, 0, worldGrid.width, worldGrid.height);
 	ctx.setTransform(camera.zoom, 0, 0, camera.zoom, camera.x + camera.base_x, camera.y + camera.base_y);
 	for (let y = 0; y < cells.length; y++)
@@ -359,8 +374,8 @@ worldGrid.addEventListener('wheel', e => {
     const mouseX = e.clientX - worldGrid.offsetLeft;
     const mouseY = e.clientY - worldGrid.offsetTop;
     
-    camera.x = mouseX - (mouseX - camera.x - camera.base_x) * factor;
-    camera.y = mouseY - (mouseY - camera.y - camera.base_y) * factor;
+    camera.x = mouseX - (mouseX - camera.x - camera.base_x) * factor - camera.base_x;
+    camera.y = mouseY - (mouseY - camera.y - camera.base_y) * factor - camera.base_y;
     camera.zoom *= factor;
 	updateGrid();
 }, { passive: false });
