@@ -22,7 +22,8 @@ debugger_handle_disconnect(Debugger* dbg)
 cJSON*
 debugger_handle_set_breakpoints(Debugger* dbg, const cJSON* params)
 {
-    cJSON* breakpoints = cJSON_GetObjectItem(params, "breakpoints"); 
+    cJSON* breakpoints = cJSON_GetObjectItem(params, "breakpoints");
+    pthread_mutex_lock(&dbg->sim_mutex);
     Program* prog = simulation_get_program(dbg->sim);
     program_clear_breakpoints(prog); 
     size_t nb_breakpoints = cJSON_GetArraySize(breakpoints); 
@@ -42,6 +43,7 @@ debugger_handle_set_breakpoints(Debugger* dbg, const cJSON* params)
         cJSON_AddNumberToObject(bp, "line", actual_line_nb);
         cJSON_AddItemToArray(result_bp, bp);
     }
+    pthread_mutex_unlock(&dbg->sim_mutex);
 
     cJSON* resp = cJSON_CreateObject(); 
     cJSON_AddItemToObject(resp, "breakpoints", result_bp);
@@ -50,12 +52,10 @@ debugger_handle_set_breakpoints(Debugger* dbg, const cJSON* params)
 }
 
 cJSON*
-debugger_handle_set_simulation_speed(Debugger* dbg, const cJSON* params);
-
-cJSON*
 debugger_handle_launch(Debugger* dbg, const cJSON* params)
 {
     dbg->program_file_path = strdup(cJSON_GetStringValue(cJSON_GetObjectItem(params, "program")));
+    pthread_mutex_lock(&dbg->sim_mutex);
     if (dbg->program_file_path == NULL)
     {
         print_debug("debugger_handle_launch: No filename field in input params");
@@ -77,10 +77,12 @@ debugger_handle_launch(Debugger* dbg, const cJSON* params)
         if (resp) cJSON_free(resp); 
     }
     pthread_create(&dbg->sim_thread, NULL, debugger_simulation_runner, dbg);
+    pthread_mutex_unlock(&dbg->sim_mutex);
 
     return cJSON_CreateObject();
 launch_error:
     //TODO: we don't have any other way of reporting an error here.
+    pthread_mutex_unlock(&dbg->sim_mutex);
     return NULL;
 }
 
@@ -96,6 +98,7 @@ debugger_handle_configuration_done(Debugger* dbg)
 cJSON*
 debugger_handle_list_threads(Debugger* dbg)
 {
+    pthread_mutex_lock(&dbg->sim_mutex);
     cJSON* resp = cJSON_CreateObject();
     cJSON* thread_list = cJSON_AddArrayToObject(resp, "threads");
     for (size_t i = 0; i < simulation_get_nb_ants(dbg->sim); i++)
@@ -109,6 +112,7 @@ debugger_handle_list_threads(Debugger* dbg)
         snprintf(thread_name, 100, "%zd %s", i, tag);
         cJSON_AddStringToObject(thread_item, "name", thread_name);
     }
+    pthread_mutex_unlock(&dbg->sim_mutex);
     return resp;
 }
 
@@ -134,6 +138,7 @@ debugger_handle_pause(Debugger* dbg, const cJSON* /*params*/)
 cJSON*
 debugger_handle_get_stack_trace(Debugger* dbg, const cJSON* params)
 {
+    pthread_mutex_lock(&dbg->sim_mutex);
     size_t ant_id = cJSON_GetNumberValue(cJSON_GetObjectItem(params, "threadId"));
     cJSON* result = cJSON_CreateObject(); 
     cJSON_AddNumberToObject(result, "totalFrames", 1);
@@ -150,12 +155,14 @@ debugger_handle_get_stack_trace(Debugger* dbg, const cJSON* params)
     cJSON* source_obj = cJSON_AddObjectToObject(frame, "source");
     cJSON_AddStringToObject(source_obj, "path", dbg->program_file_path);
 
+    pthread_mutex_unlock(&dbg->sim_mutex);
     return result;
 }
 
 cJSON* 
 debugger_handle_get_scope(Debugger* dbg, const cJSON* params)
 {
+    pthread_mutex_lock(&dbg->sim_mutex);
     const size_t ant_id = cJSON_GetNumberValue(cJSON_GetObjectItem(params, "frameId"));
     if (ant_id != dbg->last_stop_ant)
     {
@@ -187,6 +194,7 @@ debugger_handle_get_scope(Debugger* dbg, const cJSON* params)
     cJSON_AddNumberToObject(state_scope, "namedVariables", 4);
     cJSON_AddBoolToObject(state_scope, "expensive", false);
 
+    pthread_mutex_unlock(&dbg->sim_mutex);
     return result;
 }
 
@@ -269,16 +277,19 @@ cJSON*
 debugger_handle_get_variables(Debugger* dbg, const cJSON* params)
 {
     const size_t var_refs = cJSON_GetNumberValue(cJSON_GetObjectItem(params, "variablesReference"));
-    
+    pthread_mutex_lock(&dbg->sim_mutex);
+    cJSON* res;
     if (var_refs <= simulation_get_nb_ants(dbg->sim))
     {
         //Note: -1 because variablesReference start counting at 1.
-        return get_registers(dbg, var_refs - 1);
+        res = get_registers(dbg, var_refs - 1);
     }
     else
     {
-        return get_state(dbg, var_refs - simulation_get_nb_ants(dbg->sim) - 1);
+        res = get_state(dbg, var_refs - simulation_get_nb_ants(dbg->sim) - 1);
     }
+    pthread_mutex_unlock(&dbg->sim_mutex);
+    return res;
 }
 
 cJSON*

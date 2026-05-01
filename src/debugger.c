@@ -15,6 +15,7 @@ debugger_init(Debugger* debugger)
     debugger->program_file_path = NULL; 
     debugger->sim = NULL; 
 
+    pthread_mutex_init(&debugger->sim_mutex, NULL);
     sem_init(&debugger->pause_semaphore, 0, 0);
     debugger->last_stop_ant = 0;
     debugger->target_step_nb = 2000;
@@ -24,6 +25,7 @@ debugger_init(Debugger* debugger)
 void
 debugger_cleanup(Debugger* debugger)
 {
+    pthread_mutex_destroy(&debugger->sim_mutex);
     sem_destroy(&debugger->pause_semaphore);
     if (debugger->sim != NULL) 
     {
@@ -114,7 +116,7 @@ debugger_simulation_runner(void* arg)
             }
             case DBG_RUN:
             {
-
+                pthread_mutex_lock(&dbg->sim_mutex);
                 simulation_run_step(dbg->sim);
                 if (simulation_stopped_on_breakpoint(dbg->sim))
                 {
@@ -122,16 +124,20 @@ debugger_simulation_runner(void* arg)
                     dbg->last_stop_ant = simulation_get_next_running_ant(dbg->sim);
                     debugger_send_pause_notif("breakpoint", dbg->last_stop_ant);
                     debugger_send_update(dbg);
+                    pthread_mutex_unlock(&dbg->sim_mutex);
                     sem_wait(&dbg->pause_semaphore);
+                    pthread_mutex_lock(&dbg->sim_mutex);
                 }
                 if (simulation_get_step_number(dbg->sim) >= 2000)
                 {
                     dbg->state = DBG_PAUSE;
                 }
+                pthread_mutex_unlock(&dbg->sim_mutex);
                 break;
             }
             case DBG_FAST_SIM: 
             {
+                pthread_mutex_lock(&dbg->sim_mutex);
                 if (simulation_get_step_number(dbg->sim) > dbg->target_step_nb)
                 {
                     debugger_init_simulation(dbg);
@@ -145,11 +151,13 @@ debugger_simulation_runner(void* arg)
                 {
                     simulation_run_step(dbg->sim);
                 }
+                pthread_mutex_unlock(&dbg->sim_mutex);
                 break;
             }
             case DBG_STEP_OUT:
             case DBG_STEP:
             {
+                pthread_mutex_lock(&dbg->sim_mutex);
                 bool sim_others = false;
                 while(dbg->last_stop_ant != simulation_get_next_running_ant(dbg->sim) && 
                 (dbg->state == DBG_STEP || dbg->state == DBG_STEP_OUT))
@@ -196,13 +204,16 @@ debugger_simulation_runner(void* arg)
                 }
                 debugger_send_pause_notif("step", dbg->last_stop_ant);
                 debugger_send_update(dbg);
+                pthread_mutex_unlock(&dbg->sim_mutex);
                 sem_wait(&dbg->pause_semaphore);
                 break;
             }
             case DBG_PAUSE:
             {
+                pthread_mutex_lock(&dbg->sim_mutex);
                 debugger_send_pause_notif("pause", dbg->last_stop_ant);
                 debugger_send_update(dbg);
+                pthread_mutex_unlock(&dbg->sim_mutex);
                 sem_wait(&dbg->pause_semaphore);
                 break;
             } 
@@ -214,6 +225,7 @@ debugger_simulation_runner(void* arg)
         }
         if (dbg->state == DBG_RUN)
         {
+            pthread_mutex_lock(&dbg->sim_mutex);
             if (dbg->sim_speed < 0)
             {
                 time_t now; 
@@ -223,6 +235,7 @@ debugger_simulation_runner(void* arg)
                     last_sent_update = now;
                     debugger_send_update(dbg);
                 }
+                pthread_mutex_unlock(&dbg->sim_mutex);
             }
             else if (simulation_get_step_number(dbg->sim) % dbg->sim_speed == 0)
             {
@@ -231,16 +244,22 @@ debugger_simulation_runner(void* arg)
                 double diff_time = now - last_sent_update;
                 last_sent_update = now;
                 debugger_send_update(dbg);
+                pthread_mutex_unlock(&dbg->sim_mutex);
                 if (diff_time < 0.1)
                 {
                     usleep((0.1 - diff_time) * 1000 * 1000);
                 }
             }
+            else {
+                pthread_mutex_unlock(&dbg->sim_mutex);
+            }
         }
     }
 
+    pthread_mutex_lock(&dbg->sim_mutex);
     simulation_delete(dbg->sim);
     dbg->sim = NULL;
+    pthread_mutex_unlock(&dbg->sim_mutex);
 
     cJSON* terminated_notif = cJSON_CreateObject(); 
     cJSON_AddStringToObject(terminated_notif, "type", "event"); 
@@ -254,6 +273,7 @@ run_debugger(void)
 {
     init_logging("/tmp/antdbg.log");
     print_debug("antide dbg STARTED");
+    json_rpc_init();
 
     Debugger dbg; 
     debugger_init(&dbg);
@@ -326,6 +346,7 @@ loop_iter_end:
     }
 
     debugger_cleanup(&dbg);
+    json_rpc_cleanup();
     print_debug("antide dbg CLOSED");
     cleanup_logging();
 }

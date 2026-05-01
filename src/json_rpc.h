@@ -14,6 +14,12 @@ print_debug(const char* message);
 void 
 print_debug_packet(const cJSON* packet);
 
+void
+json_rpc_init();
+
+void 
+json_rpc_cleanup();
+
 void 
 send_packet(cJSON* packet, bool debug);
 

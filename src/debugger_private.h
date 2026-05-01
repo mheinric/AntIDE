@@ -20,6 +20,7 @@ typedef struct {
 
     char* program_file_path;
 
+    pthread_mutex_t sim_mutex;
     Simulation* sim;
     pthread_t sim_thread;
     sem_t pause_semaphore;
