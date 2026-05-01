@@ -173,6 +173,7 @@ debugger_handle_get_scope(Debugger* dbg, const cJSON* params)
         //which clears the marker from the view.
         dbg->last_stop_ant = ant_id; 
         debugger_send_pause_notif(dbg->state == DBG_PAUSE ? "pause" : "step", dbg->last_stop_ant);
+        debugger_send_update(dbg);
     }
     cJSON* result = cJSON_CreateObject(); 
     cJSON* scopes_array = cJSON_AddArrayToObject(result, "scopes");
@@ -357,13 +358,26 @@ debugger_handle_step(Debugger *dbg)
 cJSON*
 debugger_handle_set_current_step(Debugger* dbg, const cJSON* params)
 {
-    DebuggerState old_state = dbg->state; 
+    bool paused = debugger_is_paused(dbg);
     dbg->state = DBG_FAST_SIM;
     dbg->target_step_nb = cJSON_GetNumberValue(cJSON_GetObjectItem(params, "step"));
-    if (old_state == DBG_PAUSE || old_state == DBG_STEP || old_state == DBG_STEP_OUT)
+    if (paused)
     {
         sem_post(&dbg->pause_semaphore);
     }
+    return cJSON_CreateNull();
+}
+
+cJSON*
+debugger_handle_set_current_ant(Debugger* dbg, const cJSON* params)
+{
+    size_t ant_id = cJSON_GetNumberValue(cJSON_GetObjectItem(params, "id"));
+    dbg->last_stop_ant = ant_id;
+    debugger_send_pause_notif(dbg->state == DBG_PAUSE ? "pause" : "step", dbg->last_stop_ant);
+    pthread_mutex_lock(&dbg->sim_mutex);
+    debugger_send_update(dbg);
+    pthread_mutex_unlock(&dbg->sim_mutex);
+
     return cJSON_CreateNull();
 }
 
@@ -433,6 +447,10 @@ debugger_handle_request(Debugger* dbg, const char* method, const cJSON* params)
     if (strcmp(method, "setCurrentStep") == 0)
     {
         return debugger_handle_set_current_step(dbg, params);
+    }
+    if (strcmp(method, "setCurrentAnt") == 0)
+    {
+        return debugger_handle_set_current_ant(dbg, params);
     }
     print_debug("No handler for request:");
     print_debug(method);

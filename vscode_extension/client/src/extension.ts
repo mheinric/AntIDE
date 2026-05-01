@@ -155,6 +155,10 @@ export function activate(context: ExtensionContext) {
 						{
 							session.customRequest("setCurrentStep", message.payload);
 						}
+						if (message.command == "setCurrentAnt")
+						{
+							session.customRequest("setCurrentAnt", message.payload);
+						}
 					});
 				}
 				lastSimData = event.body;

@@ -55,6 +55,9 @@ debugger_handle_step(Debugger* dbg);
 cJSON*
 debugger_handle_set_current_step(Debugger* dbg, const cJSON* params);
 
+cJSON*
+debugger_handle_set_current_ant(Debugger* dbg, const cJSON* params);
+
 cJSON* 
 debugger_handle_request(Debugger* dbg, const char* method, const cJSON* params);
 

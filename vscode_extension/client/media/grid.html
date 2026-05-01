@@ -183,6 +183,7 @@ let simData = null;
 let cellSize = -1;
 let camera = { base_x: 0, base_y: 0, x: 0, y: 0, zoom: 1 };
 let isDragging = false;
+let hasMoved = false;
 let lastMouse = { x: 0, y: 0 };
 
 simulationProgress.addEventListener("input", (event) => {
@@ -224,24 +225,29 @@ worldGrid.addEventListener("mouseleave", (event) => {
 	detailsDiv.style.display = "none";
 });
 
-worldGrid.addEventListener("mousemove", (event) => { 
+function getCellAt(event) {
 	let worldGridRect = worldGrid.getBoundingClientRect();
-
 	const ctx = worldGrid.getContext("2d");
 	ctx.setTransform(camera.zoom, 0, 0, camera.zoom, camera.x + camera.base_x, camera.y + camera.base_y);
 	let transformedPoint = ctx.getTransform().inverse().transformPoint(new DOMPointReadOnly(event.x - worldGridRect.x, event.y - worldGridRect.y));
 	let mouseX = transformedPoint.x; 
-	let mouseY = transformedPoint.y; 
+	let mouseY = transformedPoint.y;
 
 	let map = simData.simulation.map;
 	let posX = Math.floor(mouseX / cellSize); 
 	let posY = map.height - 1 - Math.floor(mouseY / cellSize);
+	return { x: posX, y: posY };
+}
+
+worldGrid.addEventListener("mousemove", (event) => { 
+	let map = simData.simulation.map;
+	let pos = getCellAt(event);
 	let cellTypeNames = ["Empty", "Wall", "Nest"];
-	if (posX >= 0 && posY >= 0 && posX < map.width && posY < map.height)
+	if (pos.x >= 0 && pos.y >= 0 && pos.x < map.width && pos.y < map.height)
 	{
-		let cell = map.cells[posY][posX];
+		let cell = map.cells[pos.y][pos.x];
 		detailsDiv.innerHTML = `
-			<strong>X:</strong> ${posX}, <strong>Y:</strong> ${posY}<br>
+			<strong>X:</strong> ${pos.x}, <strong>Y:</strong> ${pos.y}<br>
 			<strong>Type:</strong> ${cellTypeNames[cell.type]}<br>
 			<strong>Food:</strong> ${cell.food_amount}<br> 
 			<strong>Red&nbsp;&nbsp;:</strong> ${("" + cell.pheromones[0]).padStart(3, '0')} <strong>Blue&nbsp;&nbsp;:</strong> ${("" + cell.pheromones[1]).padStart(3, '0')}<br>
@@ -332,13 +338,6 @@ function updateGrid()
 				ctx.fillStyle = getCellColor(cell);
 				ctx.fillRect(cell_pos_x, cell_pos_y, cellSize, cellSize);
 			}
-			if (cell.nb_ants > 0)
-			{
-				ctx.fillStyle = "orange"; 
-				ctx.beginPath();
-				ctx.arc(cell_pos_x + cellSize / 2, cell_pos_y + cellSize / 2, cellSize / 2, 0, 2 * Math.PI);
-				ctx.fill();
-			}
 
 			for (let i = 0; i < 4; i++)
 			{
@@ -350,12 +349,58 @@ function updateGrid()
 			}
 		}
 	}
+	for (let ant of simData.simulation.ants)
+	{
+		ctx.fillStyle = ant.carrying_food ? "orange" : "green"; 
+		const ant_pos_x = ant.x * cellSize;
+		const ant_pos_y = (cells.length - ant.y - 1) * cellSize;
+		ctx.beginPath();
+		ctx.arc(ant_pos_x + cellSize / 2, ant_pos_y + cellSize / 2, cellSize / 2, 0, 2 * Math.PI);
+		ctx.fill();
+	}
+	if (simData.last_stop_ant >= 0)
+	{
+		ant = simData.simulation.ants[simData.last_stop_ant];
+		const ant_pos_x = ant.x * cellSize + cellSize / 2;
+		const ant_pos_y = (cells.length - ant.y - 1) * cellSize + cellSize / 2;
+		ctx.fillStyle = "#FF000077";
+		let triangleSize = Math.max(20 / camera.zoom, cellSize);
+		ctx.beginPath();
+		ctx.moveTo(ant_pos_x, ant_pos_y);
+		ctx.lineTo(ant_pos_x + triangleSize / 2, ant_pos_y - triangleSize);
+		ctx.lineTo(ant_pos_x - triangleSize / 2, ant_pos_y - triangleSize);
+		ctx.closePath();
+		ctx.fill();
+	}
 }
 
-worldGrid.addEventListener('mousedown', e => { isDragging = true; lastMouse = { x: e.clientX, y: e.clientY }; });
-window.addEventListener('mouseup', () => isDragging = false);
+worldGrid.addEventListener('mousedown', e => { 
+	isDragging = true; 
+	lastMouse = { x: e.clientX, y: e.clientY }; 
+	hasMoved = false;
+});
+window.addEventListener('mouseup', e => { 
+	isDragging = false; e.preventDefault(); 
+	if (!hasMoved)
+	{
+			let pos = getCellAt(event);
+		for (let ant of simData.simulation.ants)
+		{
+			if (ant.x == pos.x && ant.y == pos.y) 
+			{
+				vscode.postMessage({
+					command: 'setCurrentAnt',
+					payload: { id: ant.id }
+				});
+				break;
+			}
+		}
+	}
+	hasMoved = false;
+});
 window.addEventListener('mousemove', e => {
     if (!isDragging) return;
+	hasMoved = true;
     camera.x += e.clientX - lastMouse.x;
     camera.y += e.clientY - lastMouse.y;
     lastMouse = { x: e.clientX, y: e.clientY };
@@ -384,20 +429,19 @@ function parseCell(data, start) {
 	const pheromones = []; 
 	for (let i = 0; i < 4; i++)
 	{
-		const ph_start = start + 10 + 2 * i;
+		const ph_start = start + 2 + 2 * i;
 		pheromones.push(Number('0x' + data.substring(ph_start, ph_start + 2)));
 	}
 	return {
 		type: data[start] - '0',
 		food_amount: data[start + 1] - '0',
-		nb_ants: Number('0x' + data.substring(start + 2, start + 10)),
 		pheromones: pheromones
 	};
 }
 
 function parseData(data) {
 	const map = data.simulation.map; 
-	const BYTES_PER_CELL = 18; //Keep this value in sync with map.c
+	const BYTES_PER_CELL = 10; //Keep this value in sync with map.c
 
 	const cells_matrix = []; 
 	for (let y = 0; y < map.height; y++)

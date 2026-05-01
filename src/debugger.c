@@ -58,7 +58,6 @@ debugger_init_simulation(Debugger *dbg)
     return true;
 }
 
-static
 void
 debugger_send_update(Debugger* dbg)
 {
@@ -77,6 +76,8 @@ debugger_send_update(Debugger* dbg)
         dbg->sim_speed == -1 ? "xMax" : 
         "x1";
     cJSON_AddStringToObject(notif_body, "speed", sim_speed_str);
+    cJSON_AddNumberToObject(notif_body, "last_stop_ant", debugger_is_paused(dbg) ? (int) dbg->last_stop_ant : -1);
+    
     send_packet(notif, false);
 }
 
@@ -349,4 +350,27 @@ loop_iter_end:
     json_rpc_cleanup();
     print_debug("antide dbg CLOSED");
     cleanup_logging();
+}
+
+bool 
+debugger_is_paused(const Debugger* dbg)
+{
+    switch(dbg->state)
+    {
+        case DBG_STEP:
+        case DBG_STEP_OUT:
+        case DBG_PAUSE:
+        {
+            return true;
+        }
+        case DBG_START:
+        case DBG_FAST_SIM:
+        case DBG_RUN:
+        case DBG_STOP:
+        case DBG_EXIT:
+        {
+            return false;
+        }
+    }
+    return false;
 }

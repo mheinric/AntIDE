@@ -15,7 +15,7 @@ cell_matches_entity(Cell *cell, EntityType entity_type)
     return false;
 }
 
-int32_t ant_get_arg_value(Ant *ant, Argument arg)
+int32_t ant_get_arg_value(const Ant *ant, Argument arg)
 {
     if (arg.is_register)
     {
@@ -26,6 +26,18 @@ int32_t ant_get_arg_value(Ant *ant, Argument arg)
     {
         return arg.value;
     }
+}
+
+cJSON*
+ant_to_json(const Ant* ant)
+{
+    cJSON* res = cJSON_CreateObject();
+    cJSON_AddNumberToObject(res, "id", ant->id);
+    cJSON_AddNumberToObject(res, "x", ant->position.x);
+    cJSON_AddNumberToObject(res, "y", ant->position.y);
+    cJSON_AddBoolToObject(res, "carrying_food", ant->carrying_food);
+    cJSON_AddNumberToObject(res, "tag", ant->tag);
+    return res; 
 }
 
 SimulationSettings simulation_settings_create_default(size_t random_seed)
@@ -86,10 +98,17 @@ void simulation_delete(Simulation *sim)
     free(sim);
 }
 
-cJSON *simulation_to_json(Simulation *sim)
+cJSON *simulation_to_json(const Simulation *sim)
 {
     cJSON* sim_json = cJSON_CreateObject(); 
     cJSON_AddItemToObject(sim_json, "map", grid_map_to_json(&sim->map));
+    cJSON* ants_json = cJSON_CreateArray(); 
+    cJSON_AddItemToObject(sim_json, "ants", ants_json); 
+    for (size_t i = 0; i < simulation_get_nb_ants(sim); i++)
+    {
+        cJSON_AddItemToArray(ants_json, ant_to_json(&sim->ants[i]));
+    }
+
     cJSON_AddNumberToObject(sim_json, "step_number", sim->step_number);
     cJSON_AddNumberToObject(sim_json, "score", sim->score);
     cJSON_AddNumberToObject(sim_json, "max_score", sim->max_score);
@@ -502,17 +521,17 @@ void simulation_run_single_instruction(Simulation *sim)
 }
 
 size_t 
-simulation_get_step_number(Simulation *sim)
+simulation_get_step_number(const Simulation *sim)
 {
     return sim->step_number;
 }
 
-size_t simulation_get_score(Simulation *sim)
+size_t simulation_get_score(const Simulation *sim)
 {
     return sim->score;
 }
 
-size_t simulation_get_max_score(Simulation *sim)
+size_t simulation_get_max_score(const Simulation *sim)
 {
     return sim->max_score;
 }
@@ -541,7 +560,7 @@ simulation_get_neighbor_cell(Simulation *sim, Position pos, Direction dir)
 }
 
 size_t 
-simulation_get_nb_ants(Simulation *sim)
+simulation_get_nb_ants(const Simulation *sim)
 {
     return sim->settings.nb_ants;
 }
@@ -553,7 +572,7 @@ simulation_get_ant(Simulation *sim, int32_t id)
 }
 
 const char*
-simulation_get_tag_name(Simulation *sim, uint8_t tag_id)
+simulation_get_tag_name(const Simulation *sim, uint8_t tag_id)
 {
     return program_get_tag_name(&sim->program, tag_id);
 }
@@ -568,7 +587,8 @@ simulation_set_ant_position(Simulation *sim, Ant *ant, Position new_pos)
     simulation_get_cell(sim, new_pos)->nb_ants++;
 }
 
-size_t simulation_get_next_running_ant(Simulation *sim)
+size_t 
+simulation_get_next_running_ant(const Simulation *sim)
 {
     return sim->next_ant_id;
 }
@@ -580,7 +600,7 @@ simulation_get_program(Simulation *sim)
 }
 
 bool
-simulation_stopped_on_breakpoint(Simulation* sim)
+simulation_stopped_on_breakpoint(const Simulation* sim)
 {
     return sim->skip_next_breakpoint;
 }
