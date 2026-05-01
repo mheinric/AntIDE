@@ -64,6 +64,14 @@ simulation_create(SimulationSettings settings, Program prog, GridMap map)
     sim->map = map;
     simulation_get_cell(sim, map.starting_pos)->nb_ants = settings.nb_ants;
     sim->score = 0;
+    sim->max_score = 0;
+    for (size_t x = 0; x < map.width; x++)
+    {
+        for (size_t y = 0; y < map.height; y++)
+        {
+            sim->max_score += simulation_get_cell(sim, (Position){ .x = x, .y = y })->food_amount;
+        }
+    }
     random_generator_init(&sim->random_generator, settings.random_seed);
     return sim;
 }
@@ -83,6 +91,8 @@ cJSON *simulation_to_json(Simulation *sim)
     cJSON* sim_json = cJSON_CreateObject(); 
     cJSON_AddItemToObject(sim_json, "map", grid_map_to_json(&sim->map));
     cJSON_AddNumberToObject(sim_json, "step_number", sim->step_number);
+    cJSON_AddNumberToObject(sim_json, "score", sim->score);
+    cJSON_AddNumberToObject(sim_json, "max_score", sim->max_score);
     return sim_json;
 }
 
@@ -500,6 +510,11 @@ simulation_get_step_number(Simulation *sim)
 size_t simulation_get_score(Simulation *sim)
 {
     return sim->score;
+}
+
+size_t simulation_get_max_score(Simulation *sim)
+{
+    return sim->max_score;
 }
 
 Cell*

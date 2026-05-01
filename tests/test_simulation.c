@@ -23,8 +23,9 @@ test_simulation_init(void)
     simulation_delete(sim);
 }
 
-Simulation*
-create_test_sim(const char* program)
+static
+Program
+parse_program(const char* program)
 {
     ParseResult parse_result = parse_program_from_string(program);
     if (parse_result_nb_errors(&parse_result) > 0)
@@ -37,6 +38,14 @@ create_test_sim(const char* program)
     Program prog; 
     program_init_move(&prog, &parse_result.program);
     parse_result_cleanup(&parse_result);
+    return prog;
+}
+
+
+Simulation*
+create_test_sim(const char* program)
+{
+    Program prog = parse_program(program);
     GridMap map; 
     grid_map_init(&map, map_settings_create_test());
     return simulation_create(simulation_settings_create_test(), prog, map);
@@ -110,20 +119,27 @@ test_simulation_drop_nest(void)
 {
     // When dropping food on a nest cell, the amount of food on the cell does not increase, but 
     // instead the score is increased by 1.
-    Simulation* sim = create_test_sim(
+    Program prog = parse_program(        
         "MOVE NORTH\n"
         "PICKUP\n"
         "MOVE SOUTH\n"
         "DROP\n"
     );
-    Position pos = simulation_get_ant(sim, 0)->position;
-    simulation_get_cell(sim, pos)->type = CELL_TYPE_NEST;
-    simulation_get_neighbor_cell(sim, pos, DIR_NORTH)->food_amount = 1;
+
+    GridMap map;
+    grid_map_init(&map, map_settings_create_test());
+    grid_map_get_cell(&map, map.starting_pos)->type = CELL_TYPE_NEST;
+    Position north_pos = map.starting_pos;
+    north_pos.y += 1;
+    grid_map_get_cell(&map, north_pos)->food_amount = 5;
+
+    Simulation* sim = simulation_create(simulation_settings_create_test(), prog, map);
     for (int i = 0; i < 4; i++)
     {
         simulation_run_step(sim);
     }
     TEST_ASSERT_EQUAL(1, simulation_get_score(sim));
+    TEST_ASSERT_EQUAL(5, simulation_get_max_score(sim));
     TEST_ASSERT_FALSE(simulation_get_ant(sim, 0)->carrying_food);
     simulation_delete(sim);
 }
@@ -493,10 +509,7 @@ test_simulation_run_single_instruction(void)
         "MOVE r0\n"
         "JMP main\n"
     ;
-    ParseResult res = parse_program_from_string(program);
-    TEST_ASSERT_EQUAL(0, parse_result_nb_errors(&res));
-    Program prog; 
-    program_init_move(&prog, &res.program);
+    Program prog = parse_program(program); 
 
     SimulationSettings settings = simulation_settings_create_test();
     settings.nb_ants = 2;

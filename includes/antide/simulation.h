@@ -63,6 +63,9 @@ simulation_get_step_number(Simulation* sim);
 size_t 
 simulation_get_score(Simulation* sim);
 
+size_t 
+simulation_get_max_score(Simulation* sim);
+
 Cell* 
 simulation_get_cell(Simulation* sim, Position pos);
 

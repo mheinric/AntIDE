@@ -9,6 +9,7 @@ struct Simulation {
     bool skip_next_breakpoint;
     Ant* ants;
     Program program;
+    size_t max_score;
     size_t score;
     RandomGenerator random_generator;
     GridMap map;

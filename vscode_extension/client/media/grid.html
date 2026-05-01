@@ -25,8 +25,9 @@
 			<input type="radio" name="speed" id="speedButtonx10" value="x10"><label for="speedButtonx10">x10</label>
 			<input type="radio" name="speed" id="speedButtonxMax" value="xMax"><label for="speedButtonxMax">xMax</label>
 		</span>
+		<span id="scoreLabel">Score: </span>
 
-		<button id="refreshPageButton">Refresh</button>
+		<button id="refreshPageButton" style="position: fixed; top: 0; left: 0">Refresh</button>
 
 	</div>
 </body>
@@ -63,7 +64,15 @@
 		left: 0;
 		height: 50px;
 		width: 100%;
+		font-size: 8pt;
 	}
+	#controlsDiv button {
+		font-size: 8pt;
+	}
+	#controlsDiv #simulationProgress {
+		height: 10px;
+	}
+
 	#simulationProgress {
 		width: calc(100% - 150px);
 		margin-left: 20px;
@@ -71,6 +80,7 @@
 	}
 	#simulationStepNumber {
 		width: 60px;
+		font-size: 8pt;
 	}
 
 	#pheroLabel {
@@ -140,6 +150,12 @@
 	#refreshPageButton {
 		margin-left: 20px;
 	}
+
+	#scoreLabel {
+		position: absolute;
+		bottom: 5px;
+		right: 10px;
+	}
 </style>
 <script>
 const vscode = acquireVsCodeApi();
@@ -160,6 +176,7 @@ const pheromoneButtons = [
 ];
 const speedInputs = document.querySelectorAll("#speedSelection input");
 const refreshPageButton = document.getElementById("refreshPageButton");
+const scoreLabel = document.getElementById("scoreLabel");
 
 
 var simData = null;
@@ -258,6 +275,7 @@ function updateGrid()
 {
 	simulationProgress.value = simData.simulation.step_number;
 	simulationStepNumber.value = simData.simulation.step_number;
+	scoreLabel.textContent = `Score: ${simData.simulation.score}/${simData.simulation.max_score}`;
 
 	const ctx = worldGrid.getContext("2d");
 	let width = body.getBoundingClientRect().width - 20;
