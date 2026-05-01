@@ -41,7 +41,6 @@
 	}
 	canvas {
 		display: block;
-		border: 1px solid black;
 		margin: 0 auto;
 	}
 	#detailsDiv {
@@ -179,8 +178,11 @@ const refreshPageButton = document.getElementById("refreshPageButton");
 const scoreLabel = document.getElementById("scoreLabel");
 
 
-var simData = null;
-var cellSize = -1;
+let simData = null;
+let cellSize = -1;
+let camera = { base_x: 0, base_y: 0, x: 0, y: 0, zoom: 1 };
+let isDragging = false;
+let lastMouse = { x: 0, y: 0 };
 
 simulationProgress.addEventListener("input", (event) => {
   simulationStepNumber.value = simulationProgress.value;
@@ -284,9 +286,10 @@ function updateGrid()
 	const nb_row = cells.length; 
 	const nb_col = cells[0].length;
 	cellSize = Math.min(width / nb_col, height / nb_row);
-	worldGrid.width = nb_row * cellSize;
-	worldGrid.height = nb_col * cellSize;
-	ctx.clearRect(0, 0, worldGrid.width, worldGrid.height);
+	worldGrid.width = width;
+	worldGrid.height = height;
+	camera.base_x = (width - cellSize * nb_col) / 2;
+	camera.base_y = (height - cellSize * nb_row) / 2;
 	const pheromone_colors = [
 		"255,   0,   0", //RED
 		"  0,   0, 255", //BLUE
@@ -298,6 +301,10 @@ function updateGrid()
 	{
 		enabledPheromones.push(pheromoneButtons[i].classList.contains("pheroEnable"));	
 	}
+
+	ctx.setTransform(1, 0, 0, 1, 0, 0);
+	ctx.clearRect(0, 0, worldGrid.width, worldGrid.height);
+	ctx.setTransform(camera.zoom, 0, 0, camera.zoom, camera.x + camera.base_x, camera.y + camera.base_y);
 	for (let y = 0; y < cells.length; y++)
 	{
 		for (let x = 0; x < cells[y].length; x++)
@@ -326,6 +333,34 @@ function updateGrid()
 		}
 	}
 }
+
+worldGrid.addEventListener('mousedown', e => { isDragging = true; lastMouse = { x: e.clientX, y: e.clientY }; });
+window.addEventListener('mouseup', () => isDragging = false);
+window.addEventListener('mousemove', e => {
+    if (!isDragging) return;
+    camera.x += e.clientX - lastMouse.x;
+    camera.y += e.clientY - lastMouse.y;
+    lastMouse = { x: e.clientX, y: e.clientY };
+	updateGrid();
+});
+
+worldGrid.addEventListener('wheel', e => {
+    e.preventDefault();
+    const zoomSpeed = 0.001;
+    const delta = -e.deltaY;
+    const factor = Math.pow(1.1, delta / 100);
+
+    // To zoom into the mouse cursor:
+    // 1. Get mouse pos relative to canvas
+    // 2. Adjust camera x/y so the point under the mouse stays put
+    const mouseX = e.clientX - worldGrid.offsetLeft;
+    const mouseY = e.clientY - worldGrid.offsetTop;
+    
+    camera.x = mouseX - (mouseX - camera.x - camera.base_x) * factor;
+    camera.y = mouseY - (mouseY - camera.y - camera.base_y) * factor;
+    camera.zoom *= factor;
+	updateGrid();
+}, { passive: false });
 
 function parseCell(data, start) {
 	const pheromones = []; 
