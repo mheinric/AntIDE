@@ -109,6 +109,15 @@ export function activate(context: ExtensionContext) {
 	var grid_panel:any = null;
 
 	context.subscriptions.push(
+		vscode.debug.onDidTerminateDebugSession(event => {
+			if (grid_panel != null)
+			{
+				grid_panel.dispose();
+				grid_panel = null;
+			}
+		})
+	);
+	context.subscriptions.push(
 		vscode.debug.onDidReceiveDebugSessionCustomEvent(event => {
 			if (event.event === 'gridContent') {
 				// Forward the data to your Webview
@@ -116,7 +125,7 @@ export function activate(context: ExtensionContext) {
 				{
 					grid_panel = vscode.window.createWebviewPanel(
 						'antVisualizer',
-						'Ant Colony Grid',
+						'Ant Simulation',
 						vscode.ViewColumn.Beside, // Open it to the side of the code
 						{ 
 							enableScripts: true,
