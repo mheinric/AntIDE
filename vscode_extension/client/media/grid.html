@@ -312,8 +312,11 @@ function updateGrid()
 			const cell = cells[y][x];
 			const cell_pos_x = x * cellSize;
 			const cell_pos_y = (cells.length - y - 1) * cellSize;
-			ctx.fillStyle = getCellColor(cell);
-			ctx.fillRect(cell_pos_x, cell_pos_y, cellSize, cellSize);
+			if (cell.type != 0 || cell.food_amount != 0)
+			{				
+				ctx.fillStyle = getCellColor(cell);
+				ctx.fillRect(cell_pos_x, cell_pos_y, cellSize, cellSize);
+			}
 			if (cell.nb_ants > 0)
 			{
 				ctx.fillStyle = "orange"; 
