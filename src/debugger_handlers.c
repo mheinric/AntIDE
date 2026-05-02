@@ -240,13 +240,10 @@ get_registers(Debugger* dbg, size_t ant_id)
     add_int_variable(var_array, "pc", ant->pc);
 
     //The other registers
+    const Program* prog = simulation_get_program(dbg->sim);
     for (int i = 0; i < 8; i++)
     {
-        char reg_name[3];
-        reg_name[0] = 'r';
-        reg_name[1] = '0' + i;
-        reg_name[2] = 0;
-        add_int_variable(var_array, reg_name, ant->registers[i]);
+        add_int_variable(var_array, program_get_register_name(prog, i), ant->registers[i]);
     }
     return resp;
 }

@@ -155,11 +155,13 @@ instruction_equal(Instruction first, Instruction second);
 typedef struct VectorInstruction VectorInstruction;
 typedef struct VectorTag VectorTag;
 typedef struct VectorSourceMap VectorSourceMap;
+typedef struct VectorRegisterAlias VectorRegisterAlias;
 
 typedef struct {
     VectorInstruction* instructions;
     VectorTag* tags;
     VectorSourceMap* source_map;
+    VectorRegisterAlias* register_aliases;
 } Program;
 
 void 
@@ -185,6 +187,12 @@ program_add_tag(Program* program, uint8_t tag_id, const char* tag_name);
 
 const char*
 program_get_tag_name(const Program *program, uint8_t tag_id);
+
+void 
+program_add_register_alias(Program* program, uint8_t reg_index, char* name);
+
+const char* 
+program_get_register_name(const Program* program, uint8_t reg_index);
 
 size_t 
 program_get_source_line(const Program *program, size_t instruction_index);

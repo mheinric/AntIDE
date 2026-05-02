@@ -13,6 +13,20 @@ tag_cleanup(Tag* tag)
     free(tag->name);
 }
 
+void 
+register_alias_init(RegisterAlias *reg_alias, uint8_t index, char *alias)
+{
+    reg_alias->register_index = index; 
+    reg_alias->alias = alias;
+}
+
+void 
+register_alias_cleanup(RegisterAlias *reg_alias)
+{
+    free(reg_alias->alias); 
+    reg_alias->alias = NULL;
+}
+
 bool 
 direction_is_valid(int32_t dir_value)
 {
@@ -266,6 +280,8 @@ program_init(Program *program)
     vector_tag_init(program->tags);
     program->source_map = calloc(1, sizeof(VectorSourceMap));
     vector_source_map_init(program->source_map);
+    program->register_aliases = calloc(1, sizeof(VectorRegisterAlias));
+    vector_register_alias_init(program->register_aliases);
 }
 
 void 
@@ -277,6 +293,8 @@ program_init_move(Program *target, Program *source)
     vector_tag_init_move(target->tags, source->tags);
     target->source_map = calloc(1, sizeof(VectorSourceMap));
     vector_source_map_init_move(target->source_map, source->source_map);
+    target->register_aliases = calloc(1, sizeof(VectorRegisterAlias));
+    vector_register_alias_init_move(target->register_aliases, source->register_aliases);
 }
 
 void 
@@ -295,6 +313,12 @@ program_cleanup(Program *program)
     vector_source_map_cleanup(program->source_map);
     free(program->source_map);
     program->source_map = NULL;
+    for (RegisterAlias* it = program->register_aliases->begin; it != program->register_aliases->end; it++)
+    {
+        register_alias_cleanup(it);
+    }
+    vector_register_alias_cleanup(program->register_aliases);
+    free(program->register_aliases);
 }
 
 uint64_t
@@ -335,6 +359,39 @@ program_get_tag_name(const Program *program, uint8_t tag_id)
         }
     }
     return "";
+}
+
+void 
+program_add_register_alias(Program* program, uint8_t reg_index, char* name)
+{
+    RegisterAlias reg_alias; 
+    register_alias_init(&reg_alias, reg_index, name);
+    vector_register_alias_push(program->register_aliases, reg_alias);
+}
+
+static const char* DEFAULT_REG_NAMES[8] = {
+    "r0",
+    "r1",
+    "r2",
+    "r3",
+    "r4",
+    "r5",
+    "r6",
+    "r7",
+};
+
+const char* 
+program_get_register_name(const Program* program, uint8_t reg_index)
+{
+    assert(reg_index < 8);
+    for (RegisterAlias* it = program->register_aliases->begin; it != program->register_aliases->end; it++)
+    {
+        if (it->register_index == reg_index)
+        {
+            return it->alias;
+        }
+    }
+    return DEFAULT_REG_NAMES[reg_index];
 }
 
 size_t 

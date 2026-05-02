@@ -28,3 +28,18 @@ typedef struct {
 #define VECTOR_ITEM_TYPE SourceMap
 #define VECTOR_ITEM_NAME source_map
 #include "internals/vector.h"
+
+typedef struct {
+    uint8_t register_index; 
+    char* alias;
+} RegisterAlias;
+
+#define VECTOR_ITEM_TYPE RegisterAlias
+#define VECTOR_ITEM_NAME register_alias
+#include "internals/vector.h"
+
+void 
+register_alias_init(RegisterAlias* reg_alias, uint8_t index, char* alias);
+
+void 
+register_alias_cleanup(RegisterAlias* reg_alias);

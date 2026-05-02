@@ -700,6 +700,8 @@ parser_read_directive(Parser* parser)
         entry.name = arg1; 
         entry.value = parsed_arg;
         vector_constant_entry_push(&parser->constants, entry);
+        char* name = strndup(arg1.begin, arg1.end - arg1.begin);
+        program_add_register_alias(&parser->parse_result.program, parsed_arg.register_index, name);
     }
     else if (token_matches_str(&directive_token, "tag"))
     {
