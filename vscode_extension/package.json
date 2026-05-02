@@ -10,16 +10,17 @@
 	},
 	"publisher": "mheinric",
 	"categories": [],
-	"keywords": [
-		"multi-root ready"
-	],
+	"keywords": [],
 	"engines": {
 		"vscode": "^1.100.0"
+	},
+	"dependencies": {
+		"vscode-languageclient": "^9.0.1"
 	},
 	"activationEvents": [
 		"onLanguage:plaintext"
 	],
-	"main": "./client/out/extension",
+	"main": "./out/extension",
 	"contributes": {
 		"languages": [{
 			"id": "aasm",
@@ -77,17 +78,14 @@
 		"vscode:prepublish": "npm run compile",
 		"compile": "tsc -b",
 		"watch": "tsc -b -w",
-		"lint": "eslint",
-		"postinstall": "cd client && npm install && cd ../server && npm install && cd ..",
-		"test": "sh ./scripts/e2e.sh"
+		"lint": "eslint"
 	},
 	"devDependencies": {
+		"@types/vscode": "^1.100.0",
 		"@eslint/js": "^9.13.0",
 		"@stylistic/eslint-plugin": "^2.9.0",
-		"@types/mocha": "^10.0.6",
 		"@types/node": "^22",
 		"eslint": "^9.13.0",
-		"mocha": "^10.3.0",
 		"typescript": "^5.9.2",
 		"typescript-eslint": "^8.39.0"
 	}

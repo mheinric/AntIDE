@@ -36,6 +36,40 @@
 				"isDefault": true
 			},
 			"detail": "compiler: Makefile"
+		},
+		{
+			"type": "npm",
+			"script": "compile",
+			"group": "build",
+			"presentation": {
+				"panel": "dedicated",
+				"reveal": "never"
+			},
+			"problemMatcher": [
+				"$tsc"
+			],
+			"options": {
+				"cwd": "${workspaceFolder}/vscode_extension"
+			}
+		},
+		{
+			"type": "npm",
+			"script": "watch",
+			"isBackground": true,
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			},
+			"presentation": {
+				"panel": "dedicated",
+				"reveal": "never"
+			},
+			"problemMatcher": [
+				"$tsc-watch"
+			],
+			"options": {
+				"cwd": "${workspaceFolder}/vscode_extension"
+			}
 		}
 	]
 }

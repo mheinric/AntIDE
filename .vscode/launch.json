@@ -30,7 +30,7 @@
             "preLaunchTask": "Build test executable"
         },
         {
-            "name": "antide run",
+            "name": "Antide run",
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/bin/antide",
@@ -53,7 +53,21 @@
                 }
             ],
             "preLaunchTask": "Build antide"
-        }
-
+        },
+		{
+			"type": "extensionHost",
+			"request": "launch",
+			"name": "Extension for VSCode",
+			"runtimeExecutable": "${execPath}",
+			"args": ["--extensionDevelopmentPath=${workspaceRoot}/vscode_extension"],
+			"outFiles": [
+				"${workspaceRoot}/vscode_extension/out/**/*.js"
+			],
+			"autoAttachChildProcesses": true,
+			"preLaunchTask": {
+				"type": "npm",
+				"script": "watch"
+			}
+		}
     ]
 }

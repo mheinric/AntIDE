@@ -12,7 +12,7 @@ import {
 
 
 function getGridWebviewContent(context: vscode.ExtensionContext) {
-	const htmlPath = vscode.Uri.joinPath(context.extensionUri, 'client', 'media', 'grid.html');
+	const htmlPath = vscode.Uri.joinPath(context.extensionUri, 'media', 'grid.html');
 	return fs.readFileSync(htmlPath.fsPath, 'utf8');
 }
 
