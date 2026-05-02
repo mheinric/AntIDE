@@ -90,6 +90,7 @@ main(int argc, char** argv)
                 simulation_run_step(sim);
             }
             printf("Score: %zd/%zd\n", simulation_get_score(sim), total_food_amount);
+            simulation_delete(sim);
         }
         else
         {

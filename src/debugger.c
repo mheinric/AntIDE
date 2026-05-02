@@ -6,6 +6,8 @@
 #include "json_rpc.h"
 #include "utils.h"
 
+#define UPDATE_WAIT_TIME 0.05
+
 void 
 debugger_init(Debugger* debugger)
 {
@@ -25,6 +27,7 @@ debugger_init(Debugger* debugger)
 void
 debugger_cleanup(Debugger* debugger)
 {
+    pthread_join(debugger->sim_thread, NULL);
     pthread_mutex_destroy(&debugger->sim_mutex);
     sem_destroy(&debugger->pause_semaphore);
     if (debugger->sim != NULL) 
@@ -98,8 +101,8 @@ void*
 debugger_simulation_runner(void* arg) 
 {
     Debugger* dbg = (Debugger*) arg;
-    time_t last_sent_update; 
-    time(&last_sent_update);
+    struct timespec last_sent_update; 
+    timespec_get(&last_sent_update, TIME_UTC);
     debugger_send_update(arg);
     while (dbg->state != DBG_STOP && dbg->state != DBG_EXIT)
     {
@@ -226,33 +229,31 @@ debugger_simulation_runner(void* arg)
         }
         if (dbg->state == DBG_RUN)
         {
-            pthread_mutex_lock(&dbg->sim_mutex);
             if (dbg->sim_speed < 0)
             {
-                time_t now; 
-                time(&now); 
-                if (now - last_sent_update > 0.1)
+                struct timespec now; 
+                timespec_get(&now, TIME_UTC); 
+                if (timespec_diff(now, last_sent_update) > UPDATE_WAIT_TIME)
                 {
                     last_sent_update = now;
+                    pthread_mutex_lock(&dbg->sim_mutex);
                     debugger_send_update(dbg);
+                    pthread_mutex_unlock(&dbg->sim_mutex);
                 }
-                pthread_mutex_unlock(&dbg->sim_mutex);
             }
             else if (simulation_get_step_number(dbg->sim) % dbg->sim_speed == 0)
             {
-                time_t now;
-                time(&now);
-                double diff_time = now - last_sent_update;
+                struct timespec now;
+                timespec_get(&now, TIME_UTC);
+                double diff_time = timespec_diff(now, last_sent_update);
                 last_sent_update = now;
+                pthread_mutex_lock(&dbg->sim_mutex);
                 debugger_send_update(dbg);
                 pthread_mutex_unlock(&dbg->sim_mutex);
-                if (diff_time < 0.1)
+                if (diff_time < UPDATE_WAIT_TIME)
                 {
-                    usleep((0.1 - diff_time) * 1000 * 1000);
+                    usleep((UPDATE_WAIT_TIME - diff_time) * 1000 * 1000);
                 }
-            }
-            else {
-                pthread_mutex_unlock(&dbg->sim_mutex);
             }
         }
     }

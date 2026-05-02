@@ -1,3 +1,4 @@
+#pragma once
 #include "parser.h"
 
 #define VECTOR_ITEM_TYPE ParseError
@@ -32,10 +33,10 @@ token_equal(const Token *first, const Token* second);
 bool 
 token_matches_str(const Token *token, const char *str);
 
-enum { PARSER_MAX_TOKE_PER_LINE = 5 };
+enum { PARSER_MAX_TOKEN_PER_LINE = 5 };
 
 typedef struct {
-    Token tokens[PARSER_MAX_TOKE_PER_LINE]; 
+    Token tokens[PARSER_MAX_TOKEN_PER_LINE]; 
     int nb_tokens;
     size_t line_number;
 } TokenLine;

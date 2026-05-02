@@ -15,7 +15,6 @@ cJSON*
 debugger_handle_disconnect(Debugger* dbg)
 {
     dbg->state = DBG_EXIT;
-    sem_destroy(&dbg->pause_semaphore);
     return cJSON_CreateObject();
 }
 
@@ -54,7 +53,13 @@ debugger_handle_set_breakpoints(Debugger* dbg, const cJSON* params)
 cJSON*
 debugger_handle_launch(Debugger* dbg, const cJSON* params)
 {
-    dbg->program_file_path = strdup(cJSON_GetStringValue(cJSON_GetObjectItem(params, "program")));
+    const char* program = cJSON_GetStringValue(cJSON_GetObjectItem(params, "program"));
+    if (program == NULL)
+    {
+        print_debug("debugger_handle_launch: Missing program field");
+        return NULL;
+    }
+    dbg->program_file_path = strdup(program);
     pthread_mutex_lock(&dbg->sim_mutex);
     if (dbg->program_file_path == NULL)
     {
@@ -147,6 +152,12 @@ debugger_handle_get_stack_trace(Debugger* dbg, const cJSON* params)
     cJSON_AddItemToArray(stackFrames, frame);
     cJSON_AddNumberToObject(frame, "id", ant_id);
     cJSON_AddStringToObject(frame, "name", "main");
+    if (ant_id >= simulation_get_nb_ants(dbg->sim))
+    {
+        print_debug("Ant index out of range");
+        pthread_mutex_unlock(&dbg->sim_mutex);
+        return NULL;
+    }
     Ant* ant = simulation_get_ant(dbg->sim, ant_id);
     size_t inst_index = (size_t) ant->pc;
     cJSON_AddNumberToObject(frame, "line", 

@@ -16,3 +16,6 @@
 
 //Upper bound on the number of characters necessary to represent a 32 bits signed int (including terminating null char)
 #define MAX_DIGITS_32BITS 15
+
+double 
+timespec_diff(struct timespec first, struct timespec second);

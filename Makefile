@@ -5,7 +5,8 @@ HEADER_DIR = includes/antide
 TEST_DIR = tests
 LIB_DIR = lib
 
-CFLAGS = -g -Wall -Wextra -Werror -I $(SRC_DIR) -I $(HEADER_DIR) -I $(TEST_DIR) -I $(LIB_DIR)
+#-fwrapv : allow signed integer overflow
+CFLAGS = -g -Wall -Wextra -Werror -fwrapv -I $(SRC_DIR) -I $(HEADER_DIR) -I $(TEST_DIR) -I $(LIB_DIR)
 LDFLAGS =
 
 SRC =  $(shell find $(SRC_DIR) -name '*.c' ! -name 'main.c') $(shell find $(LIB_DIR) -name '*.c')

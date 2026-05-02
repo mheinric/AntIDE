@@ -163,7 +163,7 @@ typedef struct {
 Packet* 
 packet_create(cJSON* json_packet)
 {
-    Packet* packet = calloc(1, sizeof(packet));
+    Packet* packet = calloc(1, sizeof(Packet));
     packet->id = cJSON_DetachItemFromObject(json_packet, "id");
 
     const char* method_name = cJSON_GetStringValue(cJSON_GetObjectItem(json_packet, "method"));

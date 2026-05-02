@@ -383,7 +383,7 @@ window.addEventListener('mouseup', e => {
 	isDragging = false; e.preventDefault(); 
 	if (!hasMoved)
 	{
-			let pos = getCellAt(event);
+		let pos = getCellAt(e);
 		for (let ant of simData.simulation.ants)
 		{
 			if (ant.x == pos.x && ant.y == pos.y) 

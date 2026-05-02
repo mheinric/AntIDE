@@ -76,7 +76,7 @@ wait_for_message()
     cJSON *packet = NULL;
     char* buffer = NULL;
     size_t payload_length;
-    int scanf_result = fscanf(stdin, "Content-Length: %ld\r\n\r\n", &payload_length);
+    int scanf_result = fscanf(stdin, "Content-Length: %zu\r\n\r\n", &payload_length);
     if (scanf_result == 0 || scanf_result == EOF)
     {
         print_debug("Failed to parse content length");

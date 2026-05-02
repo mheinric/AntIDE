@@ -117,7 +117,7 @@ void
 token_line_init(TokenLine* token_line, size_t line_number)
 {
 
-    for (int i = 0; i < PARSER_MAX_TOKE_PER_LINE; i++)
+    for (int i = 0; i < PARSER_MAX_TOKEN_PER_LINE; i++)
     {
         token_line->tokens[i] = NULL_TOKEN;
     }
@@ -749,7 +749,7 @@ parser_read_tokens_from_line(Parser *parser)
     TokenLine token_line;
     token_line_init(&token_line, parser->current_line);
 
-    while (!parser_has_line_ended(parser) && token_line.nb_tokens < PARSER_MAX_TOKE_PER_LINE)
+    while (!parser_has_line_ended(parser) && token_line.nb_tokens < PARSER_MAX_TOKEN_PER_LINE)
     {
         token_line.tokens[token_line.nb_tokens] = parser_read_token(parser);
         if (token_is_null(&token_line.tokens[token_line.nb_tokens]))
