@@ -23,7 +23,12 @@
 			"id": "aasm",
 			"aliases": ["Ant Assembly File"],
 			"extensions": [".aasm"],
-			"configuration": "./language-configuration.json"
+			"configuration": "./language_configuration.json"
+		}],
+		"grammars": [{
+			"language": "aasm",
+			"scopeName": "source.abc",
+			"path": "./aasm_syntax.json"
 		}],
 		"breakpoints": [
         {

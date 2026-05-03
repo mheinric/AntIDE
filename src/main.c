@@ -1,8 +1,8 @@
 #include "utils.h"
 #include "parser.h"
-#include "simulation_private.h" //Necessary for RandomGenerator
 #include "lsp.h"
 #include "debugger.h"
+#include "simulation.h"
 
 void 
 print_usage(void)

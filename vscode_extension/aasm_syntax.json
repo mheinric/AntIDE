@@ -1,0 +1,35 @@
+{
+  "scopeName": "source.abc",
+  "patterns": [
+    { 
+        "match": ";.*",
+        "name": "comment.line.semicolon.abc"
+    },
+    { 
+        "match": "\\.[a-zA-Z]*",
+        "name": "keyword.control.directive.aasm"
+    },
+    { 
+        "match": "(?i)^[ \t]*(PICKUP|DROP|MOVE|MARK|JMP|JEQ|JNE|JGT|JLT|CALL|SET|ADD|SUB|MOD|MUL|DIV|AND|OR|XOR|LSHIFT|RSHIFT|RANDOM|ID|CARRYING|SNIFF|SMELL|PROBE|SENSE|TAG)\\b",
+        "name": "keyword.control.aasm"
+    },
+    { 
+        "match": ".*:",
+        "name": "entity.name.label.aasm"
+    },
+    { 
+        "match": "(?i)\\b((-?[0-9]+)|0b[01]+|0x[0-9a-f]+)\\b",
+        "name": "constant.numeric.integer.aasm"
+    },
+    { 
+        "match": "(?i)\\b(NORTH|EAST|WEST|SOUTH|RANDOM|HERE|CH_RED|CH_BLUE|CH_GREEN|CH_YELLOW|r0|r1|r2|r3|r4|r5|r6|r7)\\b",
+        "name": "variable.language.aasm"
+    },
+    { 
+        "match": "(?i)\\b[a-z0-9_]+\\b",
+        "name": "variable.other.readwrite.aasm"
+    }
+  ],
+  "repository": {
+  }
+}

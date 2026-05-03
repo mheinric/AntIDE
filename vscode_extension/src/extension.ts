@@ -38,7 +38,7 @@ export function activate(context: ExtensionContext) {
 
 	const serverOptions: ServerOptions = { 
 		command: serverPath, 
-		args: ["lsp", "--stdio"],
+		args: ["lsp"],
 		transport: TransportKind.stdio,
 	};
 
