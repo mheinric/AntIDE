@@ -818,35 +818,10 @@ parse_program_from_string(const char *content)
     return result;
 }
 
-char* 
-parse_read_file(const char* file_name) {
-    FILE *file_ptr = fopen(file_name, "r");
-    if (file_ptr == NULL)
-    {
-        return NULL;
-    }
-
-    // Compute the length of the file
-    fseek(file_ptr, 0, SEEK_END);
-    long fsize = ftell(file_ptr);
-    fseek(file_ptr, 0, SEEK_SET);
-
-    // Read the whole content
-    char *content = malloc(fsize + 1);
-    fread(content, fsize, 1, file_ptr);
-    //TODO: fread might have read less than fsize I think?
-    fclose(file_ptr);
-
-    //Make sure the string is null terminated.
-    content[fsize] = 0;
-    return content;
-}
-
-
 ParseResult 
 parse_program_from_file(const char *file_path)
 {
-    char* content = parse_read_file(file_path);
+    char* content = read_file_content(file_path);
     if (content == NULL)
     {
         ParseResult result;

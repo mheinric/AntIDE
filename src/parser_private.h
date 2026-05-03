@@ -138,4 +138,4 @@ bool
 parser_read_tokens_from_line(Parser *parser);
 
 char* 
-parse_read_file(const char* file_name);
+read_file_content(const char* file_name);

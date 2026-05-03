@@ -47,6 +47,12 @@ typedef struct {
 void
 grid_map_init(GridMap* map, MapSettings settings);
 
+bool 
+grid_map_init_from_data(GridMap* map, const char* data);
+
+bool
+grid_map_init_from_file(GridMap* map, const char* file_name);
+
 void 
 grid_map_cleanup(GridMap* map);
 

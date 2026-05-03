@@ -88,9 +88,104 @@ void grid_map_init(GridMap *map, MapSettings settings)
     }
 }
 
+bool 
+grid_map_init_from_data(GridMap* map, const char* data)
+{
+    map->width = 0; 
+    map->height = 1;
+    for (const char* it = data; *it != '\0'; it++)
+    {
+        if (map->width == 0 && *it == '\n')
+        {
+            map->width = it - data;
+        }
+        if (*it == '\n')
+        {
+            map->height++;
+        }
+    }
+    map->cells = calloc(map->width * map->height, sizeof(Cell));
+    size_t column_index = 0; 
+    size_t row_index = map->height - 1;
+    bool init_pos_found = false;
+    for (const char* it = data; *it != '\0'; it++)
+    {
+        switch(*it)
+        {
+            case '\n': 
+            {
+                column_index = 0; 
+                row_index--;
+                break;
+            }
+            case '\r': break;
+            case ' ':
+            case '0':
+            case '1':
+            case '2':
+            case '3':
+            case '4':
+            case '5':
+            case '6':
+            case '7':
+            case '8':
+            {
+                Cell* cell = grid_map_get_cell(map, (Position) { .x = column_index, .y = row_index });
+                cell->type = CELL_TYPE_EMPTY;
+                if (*it != ' ')
+                {
+                    cell->food_amount = *it - '0';
+                }
+                column_index++;
+                break;
+            }
+            case 'N': 
+            case 'I': 
+            {
+                Cell* cell = grid_map_get_cell(map, (Position) { .x = column_index, .y = row_index });
+                cell->type = CELL_TYPE_NEST;
+                if (*it == 'I')
+                {
+                    init_pos_found = true; 
+                    map->starting_pos = (Position) { .x = column_index, .y = row_index };
+                }
+                column_index++;
+                break;
+            }
+            case 'W': 
+            {
+                Cell* cell = grid_map_get_cell(map, (Position) { .x = column_index, .y = row_index });
+                cell->type = CELL_TYPE_WALL;
+                column_index++;
+                break;
+            }
+            default:
+            {
+                //Invalid character in map data
+                return false;
+            }
+        }
+    }
+    return init_pos_found;
+}
+
+bool
+grid_map_init_from_file(GridMap* map, const char* file_name)
+{
+    char* file_content = read_file_content(file_name);
+    if (file_content == NULL)
+    {
+        memset(map, 0, sizeof(GridMap));
+        return false;
+    }
+    bool res = grid_map_init_from_data(map, file_content);
+    free(file_content);
+    return res;
+}
+
 void grid_map_cleanup(GridMap *map)
 {
-    free(map->cells);
+    if (map->cells != NULL) free(map->cells);
     memset(map, 0, sizeof(GridMap));
 }
 

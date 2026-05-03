@@ -19,6 +19,7 @@ typedef struct {
     DebuggerState state;
 
     char* program_file_path;
+    char* map_data;
 
     pthread_mutex_t sim_mutex;
     Simulation* sim;

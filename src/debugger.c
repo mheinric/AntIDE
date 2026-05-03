@@ -15,6 +15,7 @@ debugger_init(Debugger* debugger)
     debugger->state = DBG_START;
 
     debugger->program_file_path = NULL; 
+    debugger->map_data = NULL; 
     debugger->sim = NULL; 
 
     pthread_mutex_init(&debugger->sim_mutex, NULL);
@@ -36,6 +37,7 @@ debugger_cleanup(Debugger* debugger)
         debugger->sim = NULL;
     }
     if (debugger->program_file_path) free(debugger->program_file_path);
+    if (debugger->map_data) free(debugger->map_data);
 }
 
 bool 
@@ -56,7 +58,14 @@ debugger_init_simulation(Debugger *dbg)
     program_init_move(&prog, &result.program);
     parse_result_cleanup(&result);
     GridMap map; 
-    grid_map_init(&map, map_settings_create_default(42));
+    if (dbg->map_data != NULL)
+    {
+        grid_map_init_from_data(&map, dbg->map_data);
+    }
+    else
+    {
+        grid_map_init(&map, map_settings_create_default(42));
+    }
     dbg->sim = simulation_create(simulation_settings_create_default(42), prog, map);
     return true;
 }

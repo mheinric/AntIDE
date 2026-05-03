@@ -19,3 +19,6 @@
 
 double 
 timespec_diff(struct timespec first, struct timespec second);
+
+char* 
+read_file_content(const char* file_name);

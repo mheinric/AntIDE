@@ -66,6 +66,13 @@ debugger_handle_launch(Debugger* dbg, const cJSON* params)
         print_debug("debugger_handle_launch: No filename field in input params");
         goto launch_error;
     }
+    const char* map_data = cJSON_GetStringValue(cJSON_GetObjectItem(params, "map"));
+    if (map_data != NULL && strcmp(map_data, "default") != 0)
+    {
+        if (dbg->map_data != NULL) free(dbg->map_data);
+        dbg->map_data = strdup(map_data);
+    }
+
     if (!debugger_init_simulation(dbg))
     {
         print_debug("debugger_handle_launch: Failed to init sim");

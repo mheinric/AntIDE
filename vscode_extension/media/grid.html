@@ -9,6 +9,9 @@
     <title>Grid</title>
 </head>
 <body>
+	<button id="refreshPageButton">Refresh</button>
+	Map: <button id="mapSelectButton">Select</button>
+	<input id="mapFileSelector" type="file" accept=".txt" style="display: none;">
     <canvas id="worldGrid" width="200" height="200">
 	</canvas>
 	<div id="detailsDiv" style="display: none;"></div>
@@ -27,8 +30,6 @@
 			<input type="radio" name="speed" id="speedButtonxMax" value="xMax"><label for="speedButtonxMax">xMax</label>
 		</span>
 		<span id="scoreLabel">Score: </span>
-
-		<button id="refreshPageButton" style="position: fixed; top: 0; left: 0">Refresh</button>
 
 	</div>
 </body>
@@ -177,7 +178,8 @@ const pheromoneButtons = [
 const speedInputs = document.querySelectorAll("#speedSelection input");
 const refreshPageButton = document.getElementById("refreshPageButton");
 const scoreLabel = document.getElementById("scoreLabel");
-
+const mapFileSelector = document.getElementById("mapFileSelector");
+const mapSelectButton = document.getElementById("mapSelectButton");
 
 let simData = null;
 let cellSize = -1;
@@ -220,6 +222,21 @@ refreshPageButton.onclick = () => {
 		payload: { }
 	});
 };
+
+mapSelectButton.onclick = () => {
+	mapFileSelector.click();
+}
+
+mapFileSelector.addEventListener("change", async () => {
+	if (mapFileSelector.files.length === 1) 
+	{
+		console.log(await mapFileSelector.files[0].text());
+		vscode.postMessage({
+			command: 'setMap',
+			payload: { map: await mapFileSelector.files[0].text() }
+		});
+	}
+});
 
 worldGrid.addEventListener("mouseleave", (event) => { 
 	detailsDiv.style.display = "none";
@@ -301,7 +318,7 @@ function updateGrid()
 	scoreLabel.textContent = `Score: ${simData.simulation.score}/${simData.simulation.max_score}`;
 
 	let width = body.getBoundingClientRect().width - 20;
-	let height = body.getBoundingClientRect().height - 10 - 50;
+	let height = body.getBoundingClientRect().height - 30 - 50;
 	const cells = simData.simulation.map.cells; 
 	const nb_row = cells.length; 
 	const nb_col = cells[0].length;

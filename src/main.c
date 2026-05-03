@@ -10,93 +10,186 @@ print_usage(void)
     fprintf(stderr, "Usage:\n");
     fprintf(stderr, "antide check <filename>\n");
     fprintf(stderr, "antide run <filename>\n");
-    fprintf(stderr, "antide lsp\n");
+    fprintf(stderr, "antide lsp [--stdio]\n");
+    fprintf(stderr, "antide dbg\n");
 }
 
-int 
-main(int argc, char** argv)
+typedef enum {
+    CMD_CHECK,
+    CMD_RUN,
+    CMD_LSP,
+    CMD_DBG,
+} CmdSubCommand;
+
+typedef struct {
+    CmdSubCommand type;
+    union {
+        struct { const char* file_name; } check_args;
+        struct { const char* file_name; const char* map_name; } run_args;
+        struct { } lsp_args;
+        struct { } dbg_args;
+    };
+} CmdArgs; 
+
+bool
+parse_cmd_args(int argc, char**argv, CmdArgs* parsed_args)
 {
     if (argc < 2)
     {
         fprintf(stderr, "antide: Not enough arguments\n");
-        print_usage(); 
+        return false;
+    }
+    if (strcmp(argv[1], "check") == 0)
+    {
+        parsed_args->type = CMD_CHECK;
+    }
+    else if (strcmp(argv[1], "run") == 0)
+    {
+        parsed_args->type = CMD_RUN;
+    }
+    else if (strcmp(argv[1], "lsp") == 0)
+    {
+        parsed_args->type = CMD_LSP;
+    }
+    else if (strcmp(argv[1], "dbg") == 0)
+    {
+        parsed_args->type = CMD_DBG;
+    }
+    else 
+    {
+        fprintf(stderr, "antide: Invalid command %s\n", argv[1]);
         return 1;
     }
-
-    bool is_check = strcmp(argv[1], "check") == 0;
-    bool is_run = strcmp(argv[1], "run") == 0;
-    bool is_lsp = strcmp(argv[1], "lsp") == 0;
-    bool is_dbg = strcmp(argv[1], "dbg") == 0;
-
-    if (is_lsp)
+    switch(parsed_args->type)
     {
-        run_lsp(); 
-        return 0;
-    }
-
-    if (is_dbg)
-    {
-        run_debugger(); 
-        return 0;
-    }
-
-    // For the check and run commands
-    if (argc != 3)
-    {
-        fprintf(stderr, "antide: Not enough arguments\n");
-        print_usage(); 
-        return 1;
-    }
-
-    if (!is_check && !is_run)
-    {
-        fprintf(stderr, "antide: Unexpected command\n");
-        print_usage(); 
-        return 1;
-    }
-    ParseResult result = parse_program_from_file(argv[2]);
-    size_t nb_errors = parse_result_nb_errors(&result);
-    int status = 0;
-    if (nb_errors > 0)
-    {
-        printf("Errors:\n");
-        parse_result_print_errors(&result);
-        status = 1;
-    }
-    else
-    {
-        if (is_run)
+        case CMD_CHECK:
         {
+            if (argc != 3)
+            {
+                fprintf(stderr, "antide: Too many arguments\n");
+                return false;
+            }
+            parsed_args->check_args.file_name = argv[2];
+            break;
+        }
+        case CMD_RUN:
+        {
+            if (argc == 3)
+            {
+                parsed_args->run_args.file_name = argv[2];
+                parsed_args->run_args.map_name = NULL;
+            }
+            else if (argc == 5 && strcmp("--map", argv[2]) == 0) 
+            {
+                parsed_args->run_args.file_name = argv[4];
+                parsed_args->run_args.map_name = argv[3];
+            }
+            else 
+            {
+                fprintf(stderr, "antide: Invalid arguments\n");
+                return false;
+            }
+            break;
+        }
+        case CMD_LSP:
+        {
+            if (argc > 3)
+            {
+                fprintf(stderr, "antide: Too many arguments\n");
+                return false;
+            }
+            if (argc == 3 && strcmp(argv[2], "--stdio") != 0)
+            {
+                fprintf(stderr, "antide: Unexpected option %s\n", argv[2]);
+                return false;
+            }
+            break;
+        }
+        case CMD_DBG:
+        {
+            if (argc > 3)
+            {
+                fprintf(stderr, "antide: Too many arguments\n");
+                return false;
+            }
+            break;
+        }
+    }
+    return true;
+}
+
+
+int 
+main(int argc, char** argv)
+{
+    CmdArgs parsed_args; 
+    if (!parse_cmd_args(argc, argv, &parsed_args))
+    {
+        print_usage();
+        return 1; 
+    }
+
+    switch(parsed_args.type)
+    {
+        case CMD_LSP:
+        {
+            run_lsp(); 
+            return 0;
+        }
+        case CMD_DBG:
+        {
+            run_debugger(); 
+            return 0;
+        }
+        case CMD_CHECK:
+        case CMD_RUN:
+        {
+            ParseResult result = parse_program_from_file(parsed_args.type == CMD_CHECK ? parsed_args.check_args.file_name : parsed_args.run_args.file_name);
+            size_t nb_errors = parse_result_nb_errors(&result);
+            int status = 0;
+            if (nb_errors > 0)
+            {
+                printf("antide: Errors when reading assembly file:\n");
+                parse_result_print_errors(&result);
+                status = 1;
+                goto main_run_end;
+            }
+            if (parsed_args.type == CMD_CHECK)
+            {
+                printf("File OK\n");
+                goto main_run_end;
+            }
             Program prog; 
             program_init_move(&prog, &result.program);
-            const MapSettings map_settings = map_settings_create_default(42);
             GridMap map;
-            grid_map_init(&map, map_settings);
+            if (parsed_args.run_args.map_name == NULL)
+            {
+                const MapSettings map_settings = map_settings_create_default(42);
+                grid_map_init(&map, map_settings);
+            }
+            else
+            {
+                if (!grid_map_init_from_file(&map, parsed_args.run_args.map_name))
+                {
+                    printf("antide: Failed to read map file\n");
+                    status = 1; 
+                    grid_map_cleanup(&map);
+                    goto main_run_end;
+                }
+            }
 
             SimulationSettings settings = simulation_settings_create_default(42);
             Simulation* sim = simulation_create(settings, prog, map);
-
-            size_t total_food_amount = 0; 
-            for (size_t x = 0; x < map.width; x++)
-            {
-                for (size_t y = 0; y < map.height; y++)
-                {
-                    total_food_amount += simulation_get_cell(sim, (Position) { .x = x, .y = y })->food_amount;
-                }
-            }
 
             for (int i = 0; i < 2000; i++)
             {
                 simulation_run_step(sim);
             }
-            printf("Score: %zd/%zd\n", simulation_get_score(sim), total_food_amount);
+            printf("Score: %zu/%zu\n", simulation_get_score(sim), simulation_get_max_score(sim));
             simulation_delete(sim);
-        }
-        else
-        {
-            printf("File OK\n");
+main_run_end:
+            parse_result_cleanup(&result);
+            return status;
         }
     }
-    parse_result_cleanup(&result);
-    return status;
 }

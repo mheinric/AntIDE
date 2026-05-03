@@ -20,8 +20,17 @@ let client: LanguageClient;
 
 export function activate(context: ExtensionContext) {
 
-	var lastSimData:any = null;
-	var lastSimSpeed:any = "x1";
+	let lastSimData:any = null;
+	let lastSimSpeed = "x1";
+	let lastMapData:string = "default";
+
+	vscode.commands.registerCommand('extension.getLatestSimSpeed', () => {
+		return lastSimSpeed; 
+	});
+
+	vscode.commands.registerCommand('extension.getLatestMapData', () => {
+		return lastMapData; 
+	});
 
 	const serverPath = context.asAbsolutePath(
 		path.join('..', 'bin', 'antide')
@@ -79,7 +88,8 @@ export function activate(context: ExtensionContext) {
                         name: 'Launch Antide',
                         request: 'launch',
                         program: '${file}',
-						simulationSpeed: lastSimSpeed,
+						simulationSpeed: "${command:extension.getLatestSimSpeed}",
+						map: "${command:extension.getLatestMapData}",
                     }
                 ];
             },
@@ -92,9 +102,10 @@ export function activate(context: ExtensionContext) {
                         config.name = 'Launch';
                         config.request = 'launch';
                         config.program = '${file}';
+						config.simulationSpeed = "${command:extension.getLatestSimSpeed}";
+						config.map = "${command:extension.getLatestMapData}";
                     }
                 }
-				config.simulationSpeed = lastSimSpeed;
 
                 if (!config.program) {
                     return vscode.window.showInformationMessage(`Cannot find a program to debug ${JSON.stringify(config)}`).then(_ => {
@@ -133,7 +144,7 @@ export function activate(context: ExtensionContext) {
 						}
 					);
 					grid_panel.webview.html = getGridWebviewContent(context); 
-					grid_panel.webview.onDidReceiveMessage((message:any) => {
+					grid_panel.webview.onDidReceiveMessage(async (message:any) => {
 						if (message.command == "refreshPage") {
 							grid_panel.webview.html = getGridWebviewContent(context); 
 							grid_panel.webview.postMessage({
@@ -158,6 +169,21 @@ export function activate(context: ExtensionContext) {
 						if (message.command == "setCurrentAnt")
 						{
 							session.customRequest("setCurrentAnt", message.payload);
+						}
+						if (message.command == "setMap")
+						{
+							lastMapData = message.payload.map;
+							const activeSession = vscode.debug.activeDebugSession;
+							if (activeSession === undefined)
+							{
+								return;
+							}
+							const config = activeSession.configuration;
+							const folder = activeSession.workspaceFolder;
+							config.simulationSpeed = lastSimSpeed;
+							config.map = lastMapData;
+							await vscode.debug.stopDebugging(activeSession);
+							vscode.debug.startDebugging(folder, config);
 						}
 					});
 				}
