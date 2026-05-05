@@ -39,6 +39,7 @@ $(VSCODE_EXT): $(EXECUTABLE) $(JS_SRC) $(EXTENSION_DIR)/.vscodeignore
 	cp $(EXECUTABLE) $(EXTENSION_DIR)/out
 	cp License.md $(EXTENSION_DIR)/License.md
 	cd $(EXTENSION_DIR) && vsce package
+	mv -f $(VSCODE_EXT) $(BIN)
 
 $(TEST_EXECUTABLE): $(BIN) $(TEST_SRC) $(SRC) $(HEADERS)
 	$(CC) $(CFLAGS) -o $@ $(TEST_SRC) $(SRC) $(LDFLAGS)
