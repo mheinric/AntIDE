@@ -1,5 +1,5 @@
 {
-	"name": "antide-lsp",
+	"name": "antide",
 	"description": "An extension for writing and debugging ant assembly",
 	"author": "Marc Heinrich",
 	"license": "MIT",

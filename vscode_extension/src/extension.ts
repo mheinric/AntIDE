@@ -33,7 +33,7 @@ export function activate(context: ExtensionContext) {
 	});
 
 	const serverPath = context.asAbsolutePath(
-		path.join('..', 'bin', 'antide')
+		path.join('out', 'antide')
 	);
 
 	const serverOptions: ServerOptions = { 
@@ -64,7 +64,7 @@ export function activate(context: ExtensionContext) {
 	client.start();
 
 	const debuggerPath = context.asAbsolutePath(
-        path.join('..', 'bin', 'antide')
+        path.join('out', 'antide')
     );
 	context.subscriptions.push(
         vscode.debug.registerDebugAdapterDescriptorFactory('antide-debug', {
