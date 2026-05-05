@@ -1,8 +1,7 @@
 #pragma once
 #include "utils.h"
 #include "debugger_private.h"
-#include <cJSON/cJSON.h>
-
+/// Handler methods for all the supported requests in the DAP protocol.
 
 cJSON* 
 debugger_handle_initialize(Debugger* dbg);

@@ -1,6 +1,8 @@
 #pragma once
-#include "utils.h"
 #include "ast.h"
+#include "utils.h"
+
+/// Datastructures and methods for parsing ant assembly programs
 
 typedef struct {
     const char* message;

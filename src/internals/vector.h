@@ -1,6 +1,16 @@
-//No include guard here because we want to be able to include this file several times 
-//with different values of VECTOR_ITEM_TYPE.
-//Function should be marked as static inline in this file to avoid multiple definition issues.
+/// No include guard here because we want to be able to include this file several times 
+/// with different values of VECTOR_ITEM_TYPE.
+/// Function should be marked as static inline in this file to avoid multiple definition issues.
+///
+/// The VECTOR_ITEM_TYPE and VECTOR_ITEM_NAME macros should be defined before including this header
+/// For example: 
+/// ```
+/// #define VECTOR_ITEM_TYPE MyStruct
+/// #define VECTOR_ITEM_NAME my_struct
+/// #include "interlas/vector.h"
+/// ```
+/// This will declare a VectorMyStruct type, where all the relevant functions
+/// start with the `vector_my_struct_` prefix.
 
 #include "utils.h"
 

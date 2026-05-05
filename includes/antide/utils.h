@@ -11,14 +11,19 @@
 #include <pthread.h>
 #include <unistd.h>
 #include <semaphore.h>
+#include <cJSON/cJSON.h>
 
 #define ANTIDE_ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
 
 //Upper bound on the number of characters necessary to represent a 32 bits signed int (including terminating null char)
 #define MAX_DIGITS_32BITS 15
 
+/// @brief Computes the difference between two time points (in seconds)
 double 
 timespec_diff(struct timespec first, struct timespec second);
 
+/// @brief Get the content of a file
+/// @param file_name the path to the file to read
+/// @return The content of the file, or NULL if the file could not be openend. The caller takes ownership of the pointer
 char* 
 read_file_content(const char* file_name);

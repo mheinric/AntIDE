@@ -1,5 +1,7 @@
 #pragma once
 #include "utils.h"
+/// This file declares the datastructures and methods necessary for manipulating the assembly programs.
+
 
 typedef enum {
     DIR_HERE   = 0, 
@@ -75,6 +77,8 @@ typedef enum {
     INST_TAG,
 } InstructionType;
 
+/// @brief Structure for instruction arguments. Each argument can be either a register
+/// or an integer litteral
 typedef struct {
     bool is_register;
     union {

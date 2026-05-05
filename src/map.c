@@ -1,7 +1,7 @@
 #include "map.h"
 #include "internals/rng.h"
 
-// Serialization format: 
+// Serialization format (for performance, a binary format is used): 
 // type: 1byte
 // food_amount: 1byte
 // pheromones: 4x2bytes

@@ -2,7 +2,6 @@
 #include "utils.h"
 #include "parser.h"
 #include "json_rpc.h"
-#include <cJSON/cJSON.h>
 
 bool NEED_EXIT = false;
 

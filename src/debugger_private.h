@@ -1,7 +1,6 @@
 #pragma once
-#include "utils.h"
 #include "simulation.h"
-#include <cJSON/cJSON.h>
+#include "utils.h"
 
 typedef enum {
     DBG_START,

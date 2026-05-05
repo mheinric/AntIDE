@@ -1,5 +1,5 @@
-#include "ast_private.h"
 #include "ast.h"
+#include "ast_private.h"
 
 void tag_init(Tag *tag, uint8_t id, const char *name)
 {

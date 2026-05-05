@@ -9,7 +9,7 @@ print_usage(void)
 {
     fprintf(stderr, "Usage:\n");
     fprintf(stderr, "antide check <filename>\n");
-    fprintf(stderr, "antide run <filename>\n");
+    fprintf(stderr, "antide run [--map <map_file>] <filename>\n");
     fprintf(stderr, "antide lsp [--stdio]\n");
     fprintf(stderr, "antide dbg\n");
 }

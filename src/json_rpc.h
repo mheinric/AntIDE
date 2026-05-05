@@ -1,6 +1,6 @@
 #pragma once
 #include "utils.h"
-#include <cJSON/cJSON.h>
+/// Utility functions for programs communicating via json RPC over stdio.
 
 void
 init_logging(const char* log_file); 

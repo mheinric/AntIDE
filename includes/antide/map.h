@@ -1,6 +1,6 @@
 #pragma once
 #include "utils.h"
-#include <cJSON/cJSON.h>
+/// Datastructures for holding the simulation map.
 
 typedef struct {
     size_t x; 
