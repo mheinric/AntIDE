@@ -18,7 +18,7 @@
         "name": "entity.name.label.aasm"
     },
     { 
-        "match": "(?i)\\b((-?[0-9]+)|0b[01]+|0x[0-9a-f]+)\\b",
+        "match": "(?i)\\b((-?[0-9_]+)|0b[01_]+|0x[0-9a-f_]+)\\b",
         "name": "constant.numeric.integer.aasm"
     },
     { 
