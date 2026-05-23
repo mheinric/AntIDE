@@ -29,7 +29,7 @@ typedef enum {
 } MapType;
 
 bool 
-map_type_deserialization(char* str_type, MapType* map_type);
+map_type_deserialization(const char* str_type, MapType* map_type);
 
 typedef struct {
     size_t random_seed; 

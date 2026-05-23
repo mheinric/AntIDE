@@ -71,7 +71,7 @@ debugger_handle_launch(Debugger* dbg, const cJSON* params)
     {
         if (dbg->map_data != NULL) free(dbg->map_data);
         dbg->map_data = NULL;
-        if (!map_type_deserialization(map_data, &dbg->map_data)) {
+        if (!map_type_deserialization(map_data, &dbg->map_settings.map_type)) {
             dbg->map_data = strdup(map_data);
         }
     }

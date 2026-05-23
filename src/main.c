@@ -208,10 +208,6 @@ parse_cmd_args(int argc, char**argv, CmdArgs* parsed_args)
     {
         return parse_cmd_dbg_args(argc, argv, parsed_args);
     }
-    else if (strcmp(argv[1], "inline") == 0)
-    {
-        return parse_cmd_inline_args(argc, argv, parsed_args);
-    }
     else 
     {
         return parse_cmd_no_command_args(argc, argv, parsed_args);

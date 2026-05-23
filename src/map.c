@@ -18,7 +18,7 @@ void cell_serialization(const Cell *cell, char *buffer)
     }
 }
 
-bool map_type_deserialization(char *str_type, MapType *map_type)
+bool map_type_deserialization(const char *str_type, MapType *map_type)
 {
     if (strcmp(str_type, "default") == 0)
     {
@@ -75,7 +75,8 @@ void grid_map_init_food_default(GridMap* map, RandomGenerator* rand)
 
 void grid_map_init_food_open(GridMap* map, RandomGenerator* rand)
 {
-    const size_t max_cell_radius = 6;
+    const size_t max_cell_radius = 7;
+    const size_t min_cell_radius = 2;
     size_t total_set_amount = 0;
     while (total_set_amount < 1000)
     {
@@ -85,7 +86,7 @@ void grid_map_init_food_open(GridMap* map, RandomGenerator* rand)
             .x = max_cell_radius + random_generator_generate(rand, map->width - 2 * max_cell_radius - 1), 
             .y = max_cell_radius + random_generator_generate(rand, map->height - 2 * max_cell_radius - 1)
         };
-        const size_t cell_radius = 1 + random_generator_generate(rand, max_cell_radius - 1);
+        const size_t cell_radius = min_cell_radius + random_generator_generate(rand, max_cell_radius - min_cell_radius);
         for (size_t x = pos.x - cell_radius; x <= pos.x + cell_radius; x++)
         {
             for (size_t y = pos.y - cell_radius; y < pos.y + cell_radius; y++)
