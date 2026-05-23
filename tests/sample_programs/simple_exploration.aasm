@@ -1,0 +1,77 @@
+
+.alias temp0 r0
+.alias temp1 r1
+.alias explore_dir r6
+.alias ret r7
+
+.const HOME_CH CH_BLUE
+
+.const KEEP_DIR_PC 95 ; Probability (in %) to keep current direction
+
+main: 
+RANDOM explore_dir 4
+ADD explore_dir 1
+
+main_loop: 
+CALL ret update_home_ch
+CARRYING temp0
+JEQ temp0 0 explore
+JEQ temp0 1 go_home
+
+explore:
+; Look for food nearby
+SENSE FOOD temp0
+JEQ temp0 0 explore_no_food
+MOVE temp0 
+PICKUP
+JMP main_loop
+explore_no_food:
+; No food nearby, we move in a random direction
+RANDOM temp0 100
+JLT temp0 KEEP_DIR_PC explore_no_change_dir
+RANDOM explore_dir 4
+ADD explore_dir 1
+explore_no_change_dir: 
+MOVE explore_dir
+JMP main_loop
+
+go_home:
+SENSE NEST temp0
+JEQ temp0 0 go_home_no_nest
+; There is a nest nearby, we move towards this direction
+MOVE temp0 
+DROP
+JMP main_loop
+go_home_no_nest:
+; Look for a home pheromone trail nearby
+SMELL HOME_CH temp0
+JEQ temp0 0 go_home_no_phero
+; There is a pheormone trail we follow it
+MOVE temp0 
+JMP main_loop
+go_home_no_phero:
+; There is no pheromone nearby, we move in a random direction
+RANDOM temp0 4
+ADD temp0 1
+MOVE temp0
+JMP main_loop
+
+update_home_ch:
+; Check if there is a nest nearby
+SENSE NEST temp0
+JEQ temp0 0 update_home_ch_no_nest
+; A nest is present, set the trail to the max
+MARK HOME_CH 255
+JMP update_home_ch_end
+update_home_ch_no_nest:
+; No nest is present, update the value here to the max of the neighbors - 1
+SMELL HOME_CH temp0
+JEQ temp0 0 update_home_ch_end
+SNIFF HOME_CH temp0 temp0
+SUB temp0 1
+SNIFF HOME_CH HERE temp1
+JLT temp0 temp1 update_home_ch_end
+SUB temp0 temp1
+MARK HOME_CH temp0
+update_home_ch_end:
+JMP ret
