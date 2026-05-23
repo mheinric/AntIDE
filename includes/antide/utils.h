@@ -17,6 +17,8 @@
 
 //Upper bound on the number of characters necessary to represent a 32 bits signed int (including terminating null char)
 #define MAX_DIGITS_32BITS 15
+//Number of characters necessary to represent a 32 bit singed int as hex (format: 0xXX_XX_XX_XX, including null char)
+#define MAX_HEX_DIGITS_32BITS 14
 
 /// @brief Computes the difference between two time points (in seconds)
 double 

@@ -18,12 +18,28 @@ void cell_serialization(const Cell *cell, char *buffer)
     }
 }
 
+bool map_type_deserialization(char *str_type, MapType *map_type)
+{
+    if (strcmp(str_type, "default") == 0)
+    {
+        *map_type = MAP_TYPE_DEFAULT; 
+        return true;
+    }
+    if (strcmp(str_type, "open") == 0)
+    {
+        *map_type = MAP_TYPE_OPEN; 
+        return true;
+    }
+    return false;
+}
+
 MapSettings map_settings_create_default(size_t random_seed)
 {
     return (MapSettings) {
         .random_seed = random_seed,
         .width = 128, 
         .height = 128,
+        .map_type = MAP_TYPE_DEFAULT,
         .generate_nest = true,
         .generate_food = true,
     };
@@ -35,14 +51,92 @@ MapSettings map_settings_create_test()
         .random_seed = 42,
         .width = 10, 
         .height = 10,
+        .map_type = MAP_TYPE_DEFAULT,
         .generate_nest = false,
         .generate_food = false,
     };
 }
 
+void grid_map_init_food_default(GridMap* map, RandomGenerator* rand)
+{
+    for (int i = 0; i < 1000; i++)
+    {
+        Position pos = { 
+            .x = random_generator_generate(rand, map->width), 
+            .y = random_generator_generate(rand, map->height)
+        };
+        Cell *cell = grid_map_get_cell(map, pos);
+        if (cell->type == CELL_TYPE_EMPTY && cell->food_amount < 8)
+        {
+            cell->food_amount++; 
+        }
+    }
+}
+
+void grid_map_init_food_open(GridMap* map, RandomGenerator* rand)
+{
+    const size_t max_cell_radius = 6;
+    size_t total_set_amount = 0;
+    while (total_set_amount < 1000)
+    {
+        //Center of the patch
+        //Should not be too close from the border
+        Position pos = { 
+            .x = max_cell_radius + random_generator_generate(rand, map->width - 2 * max_cell_radius - 1), 
+            .y = max_cell_radius + random_generator_generate(rand, map->height - 2 * max_cell_radius - 1)
+        };
+        const size_t cell_radius = 1 + random_generator_generate(rand, max_cell_radius - 1);
+        for (size_t x = pos.x - cell_radius; x <= pos.x + cell_radius; x++)
+        {
+            for (size_t y = pos.y - cell_radius; y < pos.y + cell_radius; y++)
+            {
+                const size_t square_dist = (x - pos.x) * (x - pos.x) + (y - pos.y) * (y - pos.y);
+                if (square_dist > cell_radius * cell_radius)
+                {
+                    continue;
+                }
+                Cell* cell = grid_map_get_cell(map, (Position) { .x = x, .y = y });
+                cell->food_amount = 3;
+                total_set_amount += 3;
+            }
+        }
+    }
+}
+
+
+void grid_map_init_food(GridMap* map, MapSettings settings, RandomGenerator* rand)
+{
+    switch (settings.map_type)
+    {
+        case MAP_TYPE_DEFAULT:
+        {
+            grid_map_init_food_default(map, rand);
+            break;
+        }
+        case MAP_TYPE_OPEN:
+        {
+            grid_map_init_food_open(map, rand);
+            break;
+        }
+    }
+}
+
 void grid_map_init(GridMap *map, MapSettings settings)
 {
-    map->starting_pos = (Position) { .x = (settings.width - 1) / 2, .y = (settings.height -1) / 2 }; 
+    RandomGenerator rand;
+    random_generator_init(&rand, settings.random_seed);
+    if (settings.generate_nest) {
+        map->starting_pos = (Position) { 
+            .x = 2 + random_generator_generate(&rand, settings.width - 4), 
+            .y = 2 + random_generator_generate(&rand, settings.width - 4) 
+        }; 
+    }
+    else {
+        map->starting_pos = (Position) { 
+            .x = (settings.width - 1) / 2, 
+            .y = (settings.height -1) / 2 
+        }; 
+    }
     map->width = settings.width; 
     map->height = settings.height;
     map->cells = calloc(map->width * map->height, sizeof(Cell));
@@ -69,22 +163,9 @@ void grid_map_init(GridMap *map, MapSettings settings)
             }
         }
     }
-    RandomGenerator rand;
-    random_generator_init(&rand, settings.random_seed); 
     if (settings.generate_food)
     {
-        for (int i = 0; i < 1000; i++)
-        {
-            Position pos = { 
-                .x = random_generator_generate(&rand, settings.width), 
-                .y = random_generator_generate(&rand, settings.height)
-            };
-            Cell *cell = grid_map_get_cell(map, pos);
-            if (cell->type == CELL_TYPE_EMPTY && cell->food_amount < 8)
-            {
-                cell->food_amount++; 
-            }
-        }
+        grid_map_init_food(map, settings, &rand);
     }
 }
 

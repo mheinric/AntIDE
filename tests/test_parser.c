@@ -175,7 +175,7 @@ test_parse_single_instruction_arithmetic() {
         "DIV r1 10",
         "AND r1 10",
         "OR  r1 0xFF",
-        "XOR  r1 0b1100",
+        "XOR  r1 0b11_00",
         "LSHIFT r0 2",
         "RSHIFT r0 2",
         "RANDOM r0 10",

@@ -22,14 +22,14 @@ export function activate(context: ExtensionContext) {
 
 	let lastSimData:any = null;
 	let lastSimSpeed = "x1";
-	let lastMapData:string = "default";
+	let lastMapName:string = "default";
 
 	vscode.commands.registerCommand('extension.getLatestSimSpeed', () => {
 		return lastSimSpeed; 
 	});
 
 	vscode.commands.registerCommand('extension.getLatestMapData', () => {
-		return lastMapData; 
+		return lastMapName; 
 	});
 
 	const serverPath = context.asAbsolutePath(
@@ -66,6 +66,15 @@ export function activate(context: ExtensionContext) {
 	const debuggerPath = context.asAbsolutePath(
         path.join('out', 'antide')
     );
+
+	function sendGridContent() {
+		grid_panel.webview.postMessage({
+			command: 'gridContent',
+			sim: lastSimData,
+			mapName: lastMapName,
+		});
+	}
+
 	context.subscriptions.push(
         vscode.debug.registerDebugAdapterDescriptorFactory('antide-debug', {
             createDebugAdapterDescriptor(_session) {
@@ -147,10 +156,7 @@ export function activate(context: ExtensionContext) {
 					grid_panel.webview.onDidReceiveMessage(async (message:any) => {
 						if (message.command == "refreshPage") {
 							grid_panel.webview.html = getGridWebviewContent(context); 
-							grid_panel.webview.postMessage({
-								command: 'gridContent',
-								data: lastSimData
-							});
+							sendGridContent();
 						}
 						const session = vscode.debug.activeDebugSession;
 						if (!session)
@@ -172,7 +178,7 @@ export function activate(context: ExtensionContext) {
 						}
 						if (message.command == "setMap")
 						{
-							lastMapData = message.payload.map;
+							lastMapName = message.payload.map;
 							const activeSession = vscode.debug.activeDebugSession;
 							if (activeSession === undefined)
 							{
@@ -181,17 +187,14 @@ export function activate(context: ExtensionContext) {
 							const config = activeSession.configuration;
 							const folder = activeSession.workspaceFolder;
 							config.simulationSpeed = lastSimSpeed;
-							config.map = lastMapData;
+							config.map = lastMapName;
 							await vscode.debug.stopDebugging(activeSession);
 							vscode.debug.startDebugging(folder, config);
 						}
 					});
 				}
 				lastSimData = event.body;
-				grid_panel.webview.postMessage({
-					command: 'gridContent',
-					data: lastSimData
-				});
+				sendGridContent();
 			}
 		})
 	);

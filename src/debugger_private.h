@@ -19,6 +19,7 @@ typedef struct {
 
     char* program_file_path;
     char* map_data;
+    MapSettings map_settings;
 
     pthread_mutex_t sim_mutex;
     Simulation* sim;

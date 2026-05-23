@@ -67,10 +67,13 @@ debugger_handle_launch(Debugger* dbg, const cJSON* params)
         goto launch_error;
     }
     const char* map_data = cJSON_GetStringValue(cJSON_GetObjectItem(params, "map"));
-    if (map_data != NULL && strcmp(map_data, "default") != 0)
+    if (map_data != NULL)
     {
         if (dbg->map_data != NULL) free(dbg->map_data);
-        dbg->map_data = strdup(map_data);
+        dbg->map_data = NULL;
+        if (!map_type_deserialization(map_data, &dbg->map_data)) {
+            dbg->map_data = strdup(map_data);
+        }
     }
 
     if (!debugger_init_simulation(dbg))
@@ -219,13 +222,22 @@ debugger_handle_get_scope(Debugger* dbg, const cJSON* params)
 
 static
 void 
-add_int_variable(cJSON* var_array, const char* var_name, int32_t var_value)
+add_int_variable(cJSON* var_array, const char* var_name, int32_t var_value, bool add_hex)
 {
     cJSON* var_data = cJSON_CreateObject(); 
     cJSON_AddItemToArray(var_array, var_data);
     cJSON_AddStringToObject(var_data, "name", var_name);
-    char value_string[MAX_DIGITS_32BITS]; //Sufficient to write any 32-bit signed number.
-    snprintf(value_string, sizeof(value_string), "%d", var_value);
+    char value_string[MAX_DIGITS_32BITS + MAX_HEX_DIGITS_32BITS + 3]; //Sufficient to write any 32-bit signed number + its hex representation in parenthesis
+    if (add_hex) {
+        const uint8_t byte0 = (uint8_t) (var_value & 0xFF);
+        const uint8_t byte1 = (uint8_t) ((var_value >> 8) & 0xFF);
+        const uint8_t byte2 = (uint8_t) ((var_value >> 16) & 0xFF);
+        const uint8_t byte3 = (uint8_t) ((var_value >> 24) & 0xFF);
+        snprintf(value_string, sizeof(value_string), "%d (0x%02x_%02x_%02x_%02x)", var_value, byte3, byte2, byte1, byte0);
+    }
+    else {
+        snprintf(value_string, sizeof(value_string), "%d", var_value);
+    }
     cJSON_AddStringToObject(var_data, "value", value_string);
     cJSON_AddNumberToObject(var_data, "variablesReference", 0);
 }
@@ -255,13 +267,13 @@ get_registers(Debugger* dbg, size_t ant_id)
     cJSON* var_array = cJSON_AddArrayToObject(resp, "variables");
 
     //Program counter register
-    add_int_variable(var_array, "pc", ant->pc);
+    add_int_variable(var_array, "pc", ant->pc, false);
 
     //The other registers
     const Program* prog = simulation_get_program(dbg->sim);
     for (int i = 0; i < 8; i++)
     {
-        add_int_variable(var_array, program_get_register_name(prog, i), ant->registers[i]);
+        add_int_variable(var_array, program_get_register_name(prog, i), ant->registers[i], true);
     }
     return resp;
 }
@@ -279,11 +291,11 @@ get_state(Debugger* dbg, size_t ant_id)
     cJSON* resp = cJSON_CreateObject(); 
     cJSON* var_array = cJSON_AddArrayToObject(resp, "variables");
 
-    add_int_variable(var_array, "id", (int32_t) ant->id);
+    add_int_variable(var_array, "id", (int32_t) ant->id, false);
     char pos_str[MAX_DIGITS_32BITS * 2 + 10];
     snprintf(pos_str, sizeof(pos_str), "x = %d, y = %d", (int32_t) ant->position.x, (int32_t) ant->position.y);
     add_string_variable(var_array, "position", pos_str);
-    add_int_variable(var_array, "carrying", ant->carrying_food);
+    add_int_variable(var_array, "carrying", ant->carrying_food, false);
     add_string_variable(var_array, "tag", simulation_get_tag_name(dbg->sim, ant->tag));
 
     return resp;

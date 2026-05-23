@@ -406,6 +406,7 @@ test_simulation_sniff_smell(void)
         "SMELL CH_RED r2\n"
         "MOVE NORTH\n"
         "SNIFF CH_RED HERE r1\n"
+        "SMELL CH_BLUE r3\n"
     ;
     Simulation* sim = create_test_sim(program);
     Position pos = simulation_get_ant(sim, 0)->position;
@@ -415,9 +416,10 @@ test_simulation_sniff_smell(void)
     east_cell->pheromones[CH_RED] = 220;
     simulation_run_step(sim);
     simulation_run_step(sim);
-    TEST_ASSERT_EQUAL_UINT32(199, simulation_get_ant(sim, 0)->registers[0]);
-    TEST_ASSERT_EQUAL_UINT32(198, simulation_get_ant(sim, 0)->registers[1]);
-    TEST_ASSERT_EQUAL_UINT32(DIR_EAST, simulation_get_ant(sim, 0)->registers[2]);
+    TEST_ASSERT_EQUAL_INT32(199, simulation_get_ant(sim, 0)->registers[0]);
+    TEST_ASSERT_EQUAL_INT32(198, simulation_get_ant(sim, 0)->registers[1]);
+    TEST_ASSERT_EQUAL_INT32(DIR_EAST, simulation_get_ant(sim, 0)->registers[2]);
+    TEST_ASSERT_EQUAL_INT32(0, simulation_get_ant(sim, 0)->registers[3]);
     simulation_delete(sim);
 }
 

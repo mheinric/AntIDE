@@ -10,7 +10,11 @@
 </head>
 <body>
 	<button id="refreshPageButton">Refresh</button>
-	Map: <button id="mapSelectButton">Select</button>
+	Map type: <select id="mapSelect">
+		<option id="defaultMapSelectOption" value="default">Default</option>
+		<option id="openMapSelectOption" value="open">Open</option>
+		<option id="mapFileSelectButton" value="file">Select File</option>
+	</select>
 	<input id="mapFileSelector" type="file" accept=".txt" style="display: none;">
     <canvas id="worldGrid" width="200" height="200">
 	</canvas>
@@ -179,7 +183,7 @@ const speedInputs = document.querySelectorAll("#speedSelection input");
 const refreshPageButton = document.getElementById("refreshPageButton");
 const scoreLabel = document.getElementById("scoreLabel");
 const mapFileSelector = document.getElementById("mapFileSelector");
-const mapSelectButton = document.getElementById("mapSelectButton");
+const mapSelect = document.getElementById("mapSelect");
 
 let simData = null;
 let cellSize = -1;
@@ -223,18 +227,28 @@ refreshPageButton.onclick = () => {
 	});
 };
 
-mapSelectButton.onclick = () => {
-	mapFileSelector.click();
+function sendRequestSelectMap(mapId) {
+	console.log(mapId);
+	vscode.postMessage({
+		command: 'setMap',
+		payload: { map: mapId }
+	});
+}
+
+mapSelect.onchange = () => {
+	let mapId = mapSelect.value; 
+	if (mapId == "file") {
+		mapFileSelector.click();
+	}
+	else {
+		sendRequestSelectMap(mapId);
+	}
 }
 
 mapFileSelector.addEventListener("change", async () => {
 	if (mapFileSelector.files.length === 1) 
 	{
-		console.log(await mapFileSelector.files[0].text());
-		vscode.postMessage({
-			command: 'setMap',
-			payload: { map: await mapFileSelector.files[0].text() }
-		});
+		selectMap(await mapFileSelector.files[0].text());
 	}
 });
 
@@ -478,7 +492,13 @@ function parseData(data) {
 window.addEventListener('message', event => {
 	if (event.data.command == 'gridContent')
 	{
-		simData = parseData(event.data.data);
+		simData = parseData(event.data.sim);
+		let mapName = event.data.mapName;
+		if (mapName != "open" && mapName != "default")
+		{
+			mapName = file;
+		}
+		mapSelect.value = mapName;
 		updateGrid();
 		for (let speedInput of speedInputs)
 		{

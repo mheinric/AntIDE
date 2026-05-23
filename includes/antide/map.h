@@ -23,10 +23,19 @@ typedef struct {
 void
 cell_serialization(const Cell* cell, char* buffer);
 
+typedef enum {
+    MAP_TYPE_DEFAULT,
+    MAP_TYPE_OPEN,
+} MapType;
+
+bool 
+map_type_deserialization(char* str_type, MapType* map_type);
+
 typedef struct {
     size_t random_seed; 
     size_t width; 
     size_t height;
+    MapType map_type;
     bool generate_nest;
     bool generate_food;
 } MapSettings;

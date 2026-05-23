@@ -9,7 +9,7 @@ EXTENSION_DIR = vscode_extension
 VERSION = $(shell  jq -r '.version' $(EXTENSION_DIR)/package.json)
 
 #-fwrapv : allow signed integer overflow
-CFLAGS = -g -Wall -Wextra -Werror -fwrapv -I $(SRC_DIR) -I $(HEADER_DIR) -I $(TEST_DIR) -I $(LIB_DIR)
+CFLAGS = -g -Wall -Wextra -Werror -fwrapv -I $(SRC_DIR) -I $(HEADER_DIR) -I $(TEST_DIR) -I $(LIB_DIR) -D'ANTIDE_VERSION="$(VERSION)"'
 LDFLAGS =
 
 SRC =  $(shell find $(SRC_DIR) -name '*.c' ! -name 'main.c') $(shell find $(LIB_DIR) -name '*.c')
@@ -48,7 +48,7 @@ test: $(TEST_EXECUTABLE)
 	./$(TEST_EXECUTABLE)
 
 continuous: 
-	find . -name "*.[c,h]" | entr -r make
+	find . -name "*.[c,h]" | entr -r make $(EXECUTABLE)
 
 test-continuous: 
 	find . -name "*.[c,h]" | entr -r make test

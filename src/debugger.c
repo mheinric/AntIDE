@@ -16,6 +16,7 @@ debugger_init(Debugger* debugger)
 
     debugger->program_file_path = NULL; 
     debugger->map_data = NULL; 
+    debugger->map_settings = map_settings_create_default(42);
     debugger->sim = NULL; 
 
     pthread_mutex_init(&debugger->sim_mutex, NULL);
@@ -64,7 +65,7 @@ debugger_init_simulation(Debugger *dbg)
     }
     else
     {
-        grid_map_init(&map, map_settings_create_default(42));
+        grid_map_init(&map, dbg->map_settings);
     }
     dbg->sim = simulation_create(simulation_settings_create_default(42), prog, map);
     return true;
