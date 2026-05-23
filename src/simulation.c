@@ -367,7 +367,7 @@ void simulation_ant_run_single_instruction(Simulation *sim, Ant *ant, Instructio
                     nb_found++;
                 }
             }
-            if (nb_found == 0)
+            if (max_found == 0)
             {
                 ant->registers[target_register] = 0;
             }
