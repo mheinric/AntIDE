@@ -307,6 +307,9 @@ parser_read_integer(Parser* parser, const Token* token, int32_t *target)
     *target = 0;
     for (; it != token->end; it++)
     {
+        if (*it == '_') {
+            continue;
+        }
         int32_t digit_value = 0; 
         if (!parser_get_digit_value(*it, &digit_value, base))
         {
